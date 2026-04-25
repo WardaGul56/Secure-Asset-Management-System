@@ -1,9 +1,12 @@
+create extension postgis;
+
 --creating enum types for later use
 create type role_type as enum ('admin', 'manager', 'operator');
 create type department_type as enum ('logistics', 'security_patrol');
 create type scheduled_status_type as enum ('scheduled', 'in_progress', 'done');
 create type assignment_status_type as enum ('active', 'completed');
 
+--tables creation
 create table users(
 	user_id serial primary key,
 	name VARCHAR(50) not null,
@@ -54,31 +57,30 @@ create table asset(
 	asset_id serial primary key,
 	asset_name varchar(50) not null,
 	plate_number varchar(20) not null unique,
-	scheduled_status scheduled_status_type not null default 'scheduled'
+	scheduled_status scheduled_status_type not null default 'scheduled' --check this out too
 );
 create table location_logs(
 	log_id serial primary key,
-    asset_id int not null,
-    op_id varchar(20) not null,
-    current_location geometry(point, 4326) not null,
-    time_stamp timestamp not null default current_timestamp,
-    foreign key (asset_id) references assets(asset_id),
-    foreign key (op_id) references operators(op_id)
+	asset_id int not null,
+	op_id varchar(20) not null,
+	current_location GEOMETRY(POLYGON, 4326) not null,
+	time_stamp TIMESTAMP not null default current_timestamp,
+	foreign key (asset_id) references asset(asset_id),
+	foreign key (op_id) references operators(op_id)
 );
 create table assignments(
 	assignment_id serial primary key,
-    manager_id varchar(20) not null,
-    op_id varchar(20) not null,
-    asset_id int not null,
-    assigned_at timestamp not null default current_timestamp,
-    status assignment_status_type not null default 'active',
-    foreign key (manager_id) references fleet_manager(manager_id),
-    foreign key (op_id) references operators(op_id),
-    foreign key (asset_id) references asset(asset_id),
-    constraint one_active_per_asset unique (asset_id, status)
+	manager_id varchar(20) not null,
+	op_id varchar(20) not null,
+	asset_id int not null,
+	foreign key (asset_id) references asset(asset_id),
+	foreign key (op_id) references operators(op_id),
+	foreign key (manager_id) references fleet_manager(manager_id),
+	assigned_at timestamp not null default current_timestamp,
+	status assignment_status_type not null default 'active' --active or completed
 );
 create table dummy(
 	dummy_id serial primary key,
-	asset_name_fake VARCHAR(50),
-	location_fake VARCHAR(100)
+	asset_name_fake VARCHAR(20),
+	location_fake VARCHAR(50)
 );
