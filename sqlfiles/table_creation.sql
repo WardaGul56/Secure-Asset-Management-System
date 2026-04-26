@@ -84,3 +84,23 @@ create table dummy(
 	asset_name_fake VARCHAR(20),
 	location_fake VARCHAR(50)
 );
+create table honeypot_logs(
+	log_id serial primary key,
+	ip_address varchar(45) not null, -- IPv6 support
+	user_agent text,
+	query text,
+	endpoint varchar(255) not null,
+	logged_at timestamp not null default current_timestamp
+);
+create table breach_logs(
+	breach_id serial primary key,
+	log_id int not null,
+	asset_id int not null,
+	zone_id int not null,
+	breach_type varchar(50) not null,
+	detected_at timestamp not null default current_timestamp,
+	details text,
+	foreign key (log_id) references location_logs(log_id),
+	foreign key (asset_id) references asset(asset_id),
+	foreign key (zone_id) references zones(zone_id)
+);
