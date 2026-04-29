@@ -98,8 +98,162 @@ $$ LANGUAGE plpgsql;
 --assignment.py
 --auth.py
 --breaches.py
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 --maheen queries
 --honeypot.py
+CREATE TABLE IF NOT EXISTS sql_breach (
+    id SERIAL PRIMARY KEY,
+    attacker_ip TEXT,
+    malicious_input TEXT,
+    session_id TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION log_sqli_attempt(
+    p_ip TEXT,
+    p_input TEXT,
+    p_session TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO sql_breach(attacker_ip, malicious_input, session_id)
+    VALUES (p_ip, p_input, p_session);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE VIEW honeypot_assets_view AS
+SELECT
+    asset_name_fake,
+    location_fake
+FROM dummy;
+
 --location.py
 
 CREATE OR REPLACE FUNCTION log_location_fn(
