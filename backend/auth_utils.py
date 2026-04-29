@@ -15,33 +15,40 @@ JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES"))
 # bcrypt context for hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-#password hashing
+#password hashing--this generates hash for the password
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-#verify password
+#verify password--this takes plain text and generates hash and then verify both hashes
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
+#here comes jwt token creation
 def create_token(data: dict) -> str:
+<<<<<<< HEAD
     to_encode = data.copy()    ##Prevents modifying original data
     expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+=======
+    to_encode = data.copy() #this takes user data
+    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES) #this sets an expiration time from now 
+>>>>>>> 846a6c8dbde54afd58915d68dbe5b91e0802bf8b
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM]) #takes token and verifies it
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="invalid or expired token")
     
+#this takes parameter of allowed roles and then authorizes that certain user
 def require_role(allowed_roles: list):
     def checker(authorization: str = Header(...)):
         # frontend sends: "Bearer <token>"
         if not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="missing token")
-        token = authorization.split(" ")[1]
+        token = authorization.split(" ")[1] #this extracts token
         payload = decode_token(token)
         if payload.get("role") not in allowed_roles:
             raise HTTPException(status_code=403, detail="access denied")
