@@ -7,6 +7,87 @@
 --honeypot.py
 --location.py
 --operators.py
+
+CREATE OR REPLACE VIEW operators_view AS
+SELECT
+    o.op_id,
+    u.name,
+    o.username,
+    o.manager_id,
+    o.active_status
+FROM operators o
+JOIN users u ON o.user_id = u.user_id
+ORDER BY o.op_id;
+
+CREATE OR REPLACE FUNCTION get_my_operators_fn(p_user_id INT)
+RETURNS TABLE (
+    op_id TEXT,
+    name TEXT,
+    username TEXT,
+    active_status BOOLEAN
+) AS $$
+DECLARE
+    v_manager_id TEXT;
+BEGIN
+    -- get manager_id from user_id
+    SELECT manager_id INTO v_manager_id
+    FROM fleet_manager
+    WHERE user_id = p_user_id;
+
+    IF v_manager_id IS NULL THEN
+        RAISE EXCEPTION 'manager not found';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        o.op_id,
+        u.name,
+        o.username,
+        o.active_status
+    FROM operators o
+    JOIN users u ON o.user_id = u.user_id
+    WHERE o.manager_id = v_manager_id
+    ORDER BY o.op_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION toggle_operator_fn(p_op_id TEXT, p_user_id INT)
+RETURNS TABLE (
+    op_id TEXT,
+    active_status BOOLEAN
+) AS $$
+DECLARE
+    v_manager_id TEXT;
+    v_current_status BOOLEAN;
+BEGIN
+    -- get manager
+    SELECT manager_id INTO v_manager_id
+    FROM fleet_manager
+    WHERE user_id = p_user_id;
+
+    IF v_manager_id IS NULL THEN
+        RAISE EXCEPTION 'manager not found';
+    END IF;
+
+    -- check operator ownership
+    SELECT active_status INTO v_current_status
+    FROM operators
+    WHERE op_id = p_op_id AND manager_id = v_manager_id;
+
+    IF v_current_status IS NULL THEN
+        RAISE EXCEPTION 'operator not found or not in your team';
+    END IF;
+
+    -- toggle
+    UPDATE operators
+    SET active_status = NOT v_current_status
+    WHERE op_id = p_op_id;
+
+    RETURN QUERY
+    SELECT p_op_id, NOT v_current_status;
+END;
+$$ LANGUAGE plpgsql;
+
 --users.py
 
 CREATE OR REPLACE FUNCTION create_user_fn(
