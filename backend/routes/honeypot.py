@@ -1,5 +1,4 @@
 # routes/honeypot.py
-
 from fastapi import APIRouter, HTTPException, Depends, Request
 from database import get_main_db, get_vault_db, close_db
 from auth_utils import require_role
@@ -7,9 +6,9 @@ import re
 
 router = APIRouter()
 
-# ============================================
+router = APIRouter()
+
 # sql injection patterns to detect
-# ============================================
 SQLI_PATTERNS = [
     r"(\%27)|(\')|(\-\-)|(\%23)|(#)",           # quotes and comment operators
     r"\b(union|select|drop|insert|delete|update|exec|cast|alter|create)\b",  # sql keywords
@@ -25,71 +24,72 @@ def is_sqli(query: str) -> bool:
             return True
     return False
 
-
-# ============================================
 # GET /search/asset
 # honeypot — looks like a real search feature
 # operators and managers can see this in ui
-# ============================================
 @router.get("/asset")
-def honeypot_search(query: str, request: Request, user=Depends(require_role(["admin", "manager", "operator"]))):
-    # check for sql injection attempt
+def honeypot_search(
+    query: str,
+    request: Request,
+    user=Depends(require_role(["admin", "manager", "operator"]))
+):
+
+    # ---------------------------
+    # DETECT ATTACK (Python layer)
+    # ---------------------------
     if is_sqli(query):
-        # log to vault db
+
         vault_conn = get_vault_db()
         vault_cur = vault_conn.cursor()
 
         try:
-            attacker_ip = request.client.host
-            session_id = request.cookies.get("session_id", "unknown")
+            ip = request.client.host
+            session = request.cookies.get("session_id", "unknown")
 
+            # DB handles logging
             vault_cur.execute(
-                """
-                insert into sql_breach (attacker_ip, malicious_input, timestamp, session_id)
-                values (%s, %s, current_timestamp, %s)
-                """,
-                (attacker_ip, query, session_id)
+                "SELECT log_sqli_attempt(%s, %s, %s)",
+                (ip, query, session)
             )
+
             vault_conn.commit()
 
         except Exception as e:
             vault_conn.rollback()
-            print(f"failed to log sqli attempt: {e}")
+            print("vault logging failed:", e)
 
         finally:
             close_db(vault_conn, vault_cur)
 
-        # return empty result — attacker thinks search just found nothing
-        # they do not know they were detected and logged
         return {"results": [], "message": "no assets found"}
 
-    # no injection detected — query dummy table normally
+    # ---------------------------
+    # NORMAL HONEYPOT QUERY
+    # ---------------------------
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
         cur.execute(
             """
-            select fake_asset_name, fake_location
-            from dummy
-            where fake_asset_name ilike %s
+            SELECT asset_name_fake, location_fake
+            FROM honeypot_assets_view
+            WHERE asset_name_fake ILIKE %s
             """,
             (f"%{query}%",)
         )
+
         rows = cur.fetchall()
 
-        results = [
-            {
-                "asset_name": row[0],
-                "location": row[1]
-            }
-            for row in rows
-        ]
-
-        return {"results": results}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        return {
+            "results": [
+                {
+                    "asset_name": r[0],
+                    "location": r[1]
+                }
+                for r in rows
+            ]
+        }
 
     finally:
         close_db(conn, cur)
