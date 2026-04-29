@@ -131,10 +131,6 @@ def get_all_zones(user=Depends(require_role(["admin", "manager", "operator"]))):
         close_db(conn, cur)
 
 
-# ============================================
-# DELETE /zones/{zone_id}
-# only admins can delete zones
-# ============================================
 @router.delete("/{zone_id}")
 def delete_zone(zone_id: int, user=Depends(require_role(["admin"]))):
     conn = get_main_db()
@@ -162,11 +158,6 @@ def delete_zone(zone_id: int, user=Depends(require_role(["admin"]))):
     finally:
         close_db(conn, cur)
 
-
-# ============================================
-# GET /zones/{zone_id}
-# get a single zone by id
-# ============================================
 @router.get("/{zone_id}")
 def get_zone(zone_id: int, user=Depends(require_role(["admin", "manager", "operator"]))):
     conn = get_main_db()
