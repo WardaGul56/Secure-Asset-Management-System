@@ -1,5 +1,6 @@
+#this file will handle password hashing,jwt tokens,token verification and role based access control
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from passlib.context import CryptContext     ##to secure hashpasswords
 from fastapi import HTTPException, Header
 from datetime import datetime, timedelta
 import os
@@ -7,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_SECRET = os.getenv("JWT_SECRET") ##key that is being used to assign tokens
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES"))
 
@@ -23,7 +24,7 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 def create_token(data: dict) -> str:
-    to_encode = data.copy()
+    to_encode = data.copy()    ##Prevents modifying original data
     expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -46,3 +47,4 @@ def require_role(allowed_roles: list):
             raise HTTPException(status_code=403, detail="access denied")
         return payload  # returns full user info to the route
     return checker
+

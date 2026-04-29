@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI   ##will pull fastapi class from fastapi library
+from fastapi.middleware.cors import CORSMiddleware   ##middleware= code that runs between request and response
 from dotenv import load_dotenv
 import os
 
@@ -7,13 +7,13 @@ load_dotenv()
 
 from routes import auth, users, zones, assets, operators, assignment, location, honeypot, breaches
 
-app = FastAPI(title="Secure Asset Management System", version="1.0.0")
+app = FastAPI(title="Secure Asset Management System", version="1.0.0")  ##creates app object
 
 # CORS middleware
-app.add_middleware(
+app.add_middleware(       ##adds middleware to our app object
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  
-    allow_credentials=True,
+    allow_origins=["http://localhost:5173"],  ##alllows only frontend to access backend
+    allow_credentials=True,   ##allows cookies,login sessions we need this for our auth
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -34,5 +34,5 @@ async def root():
     return {"message": "GeoGuard API is running"}
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn       ##server that runs fastapi
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
