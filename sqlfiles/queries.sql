@@ -95,153 +95,164 @@ BEGIN
     WHERE a.asset_id = p_asset_id;
 END;
 $$ LANGUAGE plpgsql;
+
 --assignment.py
+-- create assignment function
+CREATE OR REPLACE FUNCTION create_assignment_fn(
+    p_user_id   INT,
+    p_op_id     TEXT,
+    p_asset_id  INT
+)
+RETURNS TABLE(assignment_id INT) AS $$
+DECLARE
+    v_manager_id    TEXT;
+    v_department    TEXT;
+    v_active_status BOOLEAN;
+    v_assignment_id INT;
+BEGIN
+    -- verify manager is logistics
+    SELECT manager_id, department INTO v_manager_id, v_department
+    FROM fleet_manager
+    WHERE user_id = p_user_id;
+
+    IF v_manager_id IS NULL OR v_department != 'logistics' THEN
+        RAISE EXCEPTION 'only logistics managers can create assignments';
+    END IF;
+
+    -- check operator exists and is active
+    SELECT active_status INTO v_active_status
+    FROM operators
+    WHERE op_id = p_op_id;
+
+    IF v_active_status IS NULL THEN
+        RAISE EXCEPTION 'operator not found';
+    END IF;
+
+    IF v_active_status = false THEN
+        RAISE EXCEPTION 'operator is not active';
+    END IF;
+
+    -- check asset exists
+    IF NOT EXISTS (SELECT 1 FROM asset WHERE asset_id = p_asset_id) THEN
+        RAISE EXCEPTION 'asset not found';
+    END IF;
+
+    -- check asset not already actively assigned
+    IF EXISTS (
+        SELECT 1 FROM assignment
+        WHERE asset_id = p_asset_id AND status = 'active'
+    ) THEN
+        RAISE EXCEPTION 'asset is already actively assigned';
+    END IF;
+
+    -- check operator not already actively assigned
+    IF EXISTS (
+        SELECT 1 FROM assignment
+        WHERE op_id = p_op_id AND status = 'active'
+    ) THEN
+        RAISE EXCEPTION 'operator already has an active assignment';
+    END IF;
+
+    -- create assignment
+    INSERT INTO assignment (manager_id, op_id, asset_id, status)
+    VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
+    RETURNING assignment.assignment_id INTO v_assignment_id;
+
+    assignment_id := v_assignment_id;
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- complete assignment function
+CREATE OR REPLACE FUNCTION complete_assignment_fn(
+    p_assignment_id INT,
+    p_user_id       INT
+)
+RETURNS VOID AS $$
+DECLARE
+    v_department    TEXT;
+    v_status        TEXT;
+BEGIN
+    -- verify logistics manager
+    SELECT department INTO v_department
+    FROM fleet_manager
+    WHERE user_id = p_user_id;
+
+    IF v_department IS NULL OR v_department != 'logistics' THEN
+        RAISE EXCEPTION 'only logistics managers can complete assignments';
+    END IF;
+
+    -- check assignment exists and is active
+    SELECT status INTO v_status
+    FROM assignment
+    WHERE assignment_id = p_assignment_id;
+
+    IF v_status IS NULL THEN
+        RAISE EXCEPTION 'assignment not found';
+    END IF;
+
+    IF v_status != 'active' THEN
+        RAISE EXCEPTION 'assignment is already completed';
+    END IF;
+
+    UPDATE assignment
+    SET status = 'completed'
+    WHERE assignment_id = p_assignment_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- view for all assignments with joins
+CREATE OR REPLACE VIEW assignments_view AS
+SELECT
+    a.assignment_id,
+    a.manager_id,
+    a.op_id,
+    a.asset_id,
+    a.assigned_at,
+    a.status,
+    ast.asset_name,
+    ast.plate_number,
+    u.name AS operator_name
+FROM assignment a
+JOIN asset ast ON a.asset_id = ast.asset_id
+JOIN operators o ON a.op_id = o.op_id
+JOIN users u ON o.user_id = u.user_id
+ORDER BY a.assigned_at DESC;
+
 --auth.py
+CREATE OR REPLACE FUNCTION login_user_fn(p_username TEXT)
+RETURNS TABLE(
+    user_id INT,
+    username TEXT,
+    role TEXT,
+    is_active BOOLEAN,
+    pass_hash TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        u.user_id,
+        p.username,
+        u.role,
+        u.is_active,
+        p.pass_hash
+    FROM passwords p
+    JOIN users u ON p.user_id = u.user_id
+    WHERE p.username = login_user_fn.p_username;
+
+    -- IMPORTANT: no business logic here on purpose
+END;
+$$;
+
 --breaches.py
 --maheen queries
 --honeypot.py
 --location.py
-
-CREATE OR REPLACE FUNCTION log_location_fn(
-    p_asset_id INT,
-    p_op_id TEXT,
-    p_lat DOUBLE PRECISION,
-    p_lon DOUBLE PRECISION
-)
-RETURNS INT AS $$
-DECLARE
-    v_log_id INT;
-BEGIN
-
-    -- validate operator assignment + active
-    IF NOT EXISTS (
-        SELECT 1
-        FROM assignment
-        WHERE op_id = p_op_id
-          AND asset_id = p_asset_id
-          AND status = 'active'
-    ) THEN
-        RAISE EXCEPTION 'operator not assigned to asset';
-    END IF;
-
-    -- insert location (trigger will handle breach detection)
-    INSERT INTO location_logs (asset_id, op_id, current_location)
-    VALUES (
-        p_asset_id,
-        p_op_id,
-        ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)
-    )
-    RETURNING log_id INTO v_log_id;
-
-    RETURN v_log_id;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE VIEW latest_locations_view AS
-SELECT DISTINCT ON (ll.asset_id)
-    ll.asset_id,
-    a.asset_name,
-    a.plate_number,
-    ll.op_id,
-    ST_Y(ll.current_location::geometry) AS latitude,
-    ST_X(ll.current_location::geometry) AS longitude,
-    ll.time_stamp
-FROM location_logs ll
-JOIN asset a ON ll.asset_id = a.asset_id
-ORDER BY ll.asset_id, ll.time_stamp DESC;
-
-CREATE OR REPLACE VIEW location_history_view AS
-SELECT
-    ll.log_id,
-    ll.asset_id,
-    ll.op_id,
-    ST_Y(ll.current_location::geometry) AS latitude,
-    ST_X(ll.current_location::geometry) AS longitude,
-    ll.time_stamp
-FROM location_logs ll;
-
 --operators.py
-
-CREATE OR REPLACE VIEW operators_view AS
-SELECT
-    o.op_id,
-    u.name,
-    o.username,
-    o.manager_id,
-    o.active_status
-FROM operators o
-JOIN users u ON o.user_id = u.user_id
-ORDER BY o.op_id;
-
-CREATE OR REPLACE FUNCTION get_my_operators_fn(p_user_id INT)
-RETURNS TABLE (
-    op_id TEXT,
-    name TEXT,
-    username TEXT,
-    active_status BOOLEAN
-) AS $$
-DECLARE
-    v_manager_id TEXT;
-BEGIN
-    -- get manager_id from user_id
-    SELECT manager_id INTO v_manager_id
-    FROM fleet_manager
-    WHERE user_id = p_user_id;
-
-    IF v_manager_id IS NULL THEN
-        RAISE EXCEPTION 'manager not found';
-    END IF;
-
-    RETURN QUERY
-    SELECT
-        o.op_id,
-        u.name,
-        o.username,
-        o.active_status
-    FROM operators o
-    JOIN users u ON o.user_id = u.user_id
-    WHERE o.manager_id = v_manager_id
-    ORDER BY o.op_id;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION toggle_operator_fn(p_op_id TEXT, p_user_id INT)
-RETURNS TABLE (
-    op_id TEXT,
-    active_status BOOLEAN
-) AS $$
-DECLARE
-    v_manager_id TEXT;
-    v_current_status BOOLEAN;
-BEGIN
-    -- get manager
-    SELECT manager_id INTO v_manager_id
-    FROM fleet_manager
-    WHERE user_id = p_user_id;
-
-    IF v_manager_id IS NULL THEN
-        RAISE EXCEPTION 'manager not found';
-    END IF;
-
-    -- check operator ownership
-    SELECT active_status INTO v_current_status
-    FROM operators
-    WHERE op_id = p_op_id AND manager_id = v_manager_id;
-
-    IF v_current_status IS NULL THEN
-        RAISE EXCEPTION 'operator not found or not in your team';
-    END IF;
-
-    -- toggle
-    UPDATE operators
-    SET active_status = NOT v_current_status
-    WHERE op_id = p_op_id;
-
-    RETURN QUERY
-    SELECT p_op_id, NOT v_current_status;
-END;
-$$ LANGUAGE plpgsql;
-
 --users.py
 
 CREATE OR REPLACE FUNCTION create_user_fn(
