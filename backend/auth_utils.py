@@ -25,13 +25,8 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 #here comes jwt token creation
 def create_token(data: dict) -> str:
-<<<<<<< HEAD
     to_encode = data.copy()    ##Prevents modifying original data
     expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
-=======
-    to_encode = data.copy() #this takes user data
-    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES) #this sets an expiration time from now 
->>>>>>> 846a6c8dbde54afd58915d68dbe5b91e0802bf8b
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
