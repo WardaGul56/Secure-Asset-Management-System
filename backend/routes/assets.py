@@ -11,9 +11,11 @@ class AssetInput(BaseModel):
 
 class UpdateStatusInput(BaseModel):
     asset_id: int
-    scheduled_status: str  
+    scheduled_status: str
 
 
+# POST /assets/create
+# only admins can register new trucks
 @router.post("/create")
 def create_asset(data: AssetInput, user=Depends(require_role(["admin"]))):
     conn = get_main_db()
@@ -21,74 +23,59 @@ def create_asset(data: AssetInput, user=Depends(require_role(["admin"]))):
 
     try:
         cur.execute(
-            "select asset_id from asset where plate_number = %s",
-            (data.plate_number,)
-        )
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="plate number already exists")
-
-        cur.execute(
-            """
-            insert into asset (asset_name, plate_number, scheduled_status)
-            values (%s, %s, 'scheduled')
-            returning asset_id
-            """,
+            "SELECT * FROM create_asset_fn(%s, %s)",
             (data.asset_name, data.plate_number)
         )
-        asset_id = cur.fetchone()[0]
+        result = cur.fetchone()
         conn.commit()
 
         return {
             "message": "asset created successfully",
-            "asset_id": asset_id,
-            "asset_name": data.asset_name,
-            "plate_number": data.plate_number
+            "asset_id": result[0],
+            "asset_name": result[1],
+            "plate_number": result[2]
         }
-
-    except HTTPException:
-        conn.rollback()
-        raise
 
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)
 
+
+# GET /assets/all
+# admins and managers can view all trucks
 @router.get("/all")
 def get_all_assets(user=Depends(require_role(["admin", "manager"]))):
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
-        cur.execute(
-            """
-            select asset_id, asset_name, plate_number, scheduled_status
-            from asset
-            order by asset_id desc
-            """
-        )
+        cur.execute("SELECT * FROM assets_view")
         rows = cur.fetchall()
 
-        assets_list = [
-            {
-                "asset_id": row[0],
-                "asset_name": row[1],
-                "plate_number": row[2],
-                "scheduled_status": row[3]
-            }
-            for row in rows
-        ]
-
-        return {"assets": assets_list}
+        return {
+            "assets": [
+                {
+                    "asset_id": r[0],
+                    "asset_name": r[1],
+                    "plate_number": r[2],
+                    "scheduled_status": r[3]
+                }
+                for r in rows
+            ]
+        }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)
 
+
+# PUT /assets/status
+# only logistics managers can update truck status
 @router.put("/status")
 def update_asset_status(data: UpdateStatusInput, user=Depends(require_role(["manager"]))):
     conn = get_main_db()
@@ -96,53 +83,30 @@ def update_asset_status(data: UpdateStatusInput, user=Depends(require_role(["man
 
     try:
         cur.execute(
-            "select department from fleet_manager where user_id = %s",
-            (user["user_id"],)
-        )
-        result = cur.fetchone()
-        if not result or result[0] != "logistics":
-            raise HTTPException(status_code=403, detail="only logistics managers can update asset status")
-
-        if data.scheduled_status not in ["scheduled", "in_progress", "done"]:
-            raise HTTPException(status_code=400, detail="invalid status value")
-
-        cur.execute("select asset_id from asset where asset_id = %s", (data.asset_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="asset not found")
-
-        cur.execute(
-            "update asset set scheduled_status = %s where asset_id = %s",
-            (data.scheduled_status, data.asset_id)
+            "SELECT update_asset_status_fn(%s, %s, %s)",
+            (data.asset_id, data.scheduled_status, user["user_id"])
         )
         conn.commit()
 
         return {"message": "asset status updated successfully"}
 
-    except HTTPException:
-        conn.rollback()
-        raise
-
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)
 
+
+# GET /assets/{asset_id}
+# admins and managers can view a single truck
 @router.get("/{asset_id}")
 def get_asset(asset_id: int, user=Depends(require_role(["admin", "manager"]))):
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
-        cur.execute(
-            """
-            select asset_id, asset_name, plate_number, scheduled_status
-            from asset
-            where asset_id = %s
-            """,
-            (asset_id,)
-        )
+        cur.execute("SELECT * FROM get_asset_fn(%s)", (asset_id,))
         row = cur.fetchone()
 
         if not row:
@@ -159,7 +123,7 @@ def get_asset(asset_id: int, user=Depends(require_role(["admin", "manager"]))):
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)

@@ -1,5 +1,100 @@
 --warda queries
 --assets.py
+-- create asset function
+CREATE OR REPLACE FUNCTION create_asset_fn(
+    p_asset_name    TEXT,
+    p_plate_number  TEXT
+)
+RETURNS TABLE(asset_id INT, asset_name TEXT, plate_number TEXT) AS $$
+DECLARE
+    v_asset_id INT;
+BEGIN
+    -- check duplicate plate
+    IF EXISTS (SELECT 1 FROM asset WHERE plate_number = p_plate_number) THEN
+        RAISE EXCEPTION 'plate number already exists';
+    END IF;
+
+    INSERT INTO asset (asset_name, plate_number, scheduled_status)
+    VALUES (p_asset_name, p_plate_number, 'scheduled')
+    RETURNING asset.asset_id INTO v_asset_id;
+
+    asset_id    := v_asset_id;
+    asset_name  := p_asset_name;
+    plate_number := p_plate_number;
+
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- view to list all assets
+CREATE OR REPLACE VIEW assets_view AS
+SELECT
+    asset_id,
+    asset_name,
+    plate_number,
+    scheduled_status
+FROM asset
+ORDER BY asset_id DESC;
+
+
+-- update asset status function
+-- raises exceptions for each failure case
+-- Python catches them via the generic except block
+CREATE OR REPLACE FUNCTION update_asset_status_fn(
+    p_asset_id      INT,
+    p_new_status    TEXT,
+    p_user_id       INT
+)
+RETURNS VOID AS $$
+DECLARE
+    v_department TEXT;
+BEGIN
+    -- check manager is logistics
+    SELECT department INTO v_department
+    FROM fleet_manager
+    WHERE user_id = p_user_id;
+
+    IF v_department IS NULL OR v_department != 'logistics' THEN
+        RAISE EXCEPTION 'only logistics managers can update asset status';
+    END IF;
+
+    -- validate status value
+    IF p_new_status NOT IN ('scheduled', 'in_progress', 'done') THEN
+        RAISE EXCEPTION 'invalid status value';
+    END IF;
+
+    -- check asset exists
+    IF NOT EXISTS (SELECT 1 FROM asset WHERE asset_id = p_asset_id) THEN
+        RAISE EXCEPTION 'asset not found';
+    END IF;
+
+    UPDATE asset
+    SET scheduled_status = p_new_status
+    WHERE asset_id = p_asset_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- get single asset function
+CREATE OR REPLACE FUNCTION get_asset_fn(p_asset_id INT)
+RETURNS TABLE(
+    asset_id            INT,
+    asset_name          TEXT,
+    plate_number        TEXT,
+    scheduled_status    TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        a.asset_id,
+        a.asset_name::TEXT,
+        a.plate_number::TEXT,
+        a.scheduled_status::TEXT
+    FROM asset a
+    WHERE a.asset_id = p_asset_id;
+END;
+$$ LANGUAGE plpgsql;
 --assignment.py
 --auth.py
 --breaches.py
