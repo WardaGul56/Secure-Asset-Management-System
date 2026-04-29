@@ -7,36 +7,28 @@ from auth_utils import require_role
 
 router = APIRouter()
 
-# ============================================
-# request models
-# ============================================
+#request models -- what should we expect while receiving a JSON response
 class ZoneInput(BaseModel):
     zone_name: str
     is_forbidden: bool
+    coordinates: list[list[float]]
     # coordinates come as a list of [longitude, latitude] pairs
     # example: [[73.0, 33.0], [73.1, 33.0], [73.1, 33.1], [73.0, 33.1], [73.0, 33.0]]
     # first and last coordinate must be the same to close the polygon
-    coordinates: list[list[float]]
 
-
-# ============================================
-# helper — converts coordinate list to WKT polygon
-# WKT (well known text) is what postgis understands
+# following converts coordinate list to well known text polygon
+# well known text is what postgis understands
 # example output: POLYGON((73.0 33.0, 73.1 33.0, ...))
-# ============================================
 def coords_to_wkt(coordinates: list[list[float]]) -> str:
     if coordinates[0] != coordinates[-1]:
         coordinates.append(coordinates[0])  # auto close polygon if not closed
     coord_str = ", ".join(f"{lon} {lat}" for lon, lat in coordinates)
     return f"POLYGON(({coord_str}))"
 
-
-# ============================================
 # POST /zones/create
 # only admins can create zones
-# ============================================
 @router.post("/create")
-def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))):
+def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))): #this verifies if the user accessing is admin or not
     conn = get_main_db()
     cur = conn.cursor()
 
@@ -88,11 +80,8 @@ def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))):
     finally:
         close_db(conn, cur)
 
-
-# ============================================
 # GET /zones/all
 # all roles can view zones — needed for map display
-# ============================================
 @router.get("/all")
 def get_all_zones(user=Depends(require_role(["admin", "manager", "operator"]))):
     conn = get_main_db()
