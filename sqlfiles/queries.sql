@@ -244,135 +244,29 @@ BEGIN
     JOIN users u ON p.user_id = u.user_id
     WHERE p.username = login_user_fn.p_username;
 
-    -- IMPORTANT: no business logic here on purpose
 END;
 $$;
 
 --breaches.py
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+CREATE OR REPLACE VIEW sqli_breaches_view AS
+SELECT
+    sb_id,
+    attacker_ip,
+    malicious_input,
+    timestamp,
+    session_id
+FROM sql_breach
+ORDER BY timestamp DESC;
+
+CREATE OR REPLACE VIEW geofence_breaches_view AS
+SELECT
+    gb_id,
+    log_id,
+    asset_id,
+    zone_id,
+    detected_at
+FROM geofence_breach
+ORDER BY detected_at DESC;
 
 
 
