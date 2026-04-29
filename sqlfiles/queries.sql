@@ -6,6 +6,65 @@
 --maheen queries
 --honeypot.py
 --location.py
+
+CREATE OR REPLACE FUNCTION log_location_fn(
+    p_asset_id INT,
+    p_op_id TEXT,
+    p_lat DOUBLE PRECISION,
+    p_lon DOUBLE PRECISION
+)
+RETURNS INT AS $$
+DECLARE
+    v_log_id INT;
+BEGIN
+
+    -- validate operator assignment + active
+    IF NOT EXISTS (
+        SELECT 1
+        FROM assignment
+        WHERE op_id = p_op_id
+          AND asset_id = p_asset_id
+          AND status = 'active'
+    ) THEN
+        RAISE EXCEPTION 'operator not assigned to asset';
+    END IF;
+
+    -- insert location (trigger will handle breach detection)
+    INSERT INTO location_logs (asset_id, op_id, current_location)
+    VALUES (
+        p_asset_id,
+        p_op_id,
+        ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)
+    )
+    RETURNING log_id INTO v_log_id;
+
+    RETURN v_log_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE VIEW latest_locations_view AS
+SELECT DISTINCT ON (ll.asset_id)
+    ll.asset_id,
+    a.asset_name,
+    a.plate_number,
+    ll.op_id,
+    ST_Y(ll.current_location::geometry) AS latitude,
+    ST_X(ll.current_location::geometry) AS longitude,
+    ll.time_stamp
+FROM location_logs ll
+JOIN asset a ON ll.asset_id = a.asset_id
+ORDER BY ll.asset_id, ll.time_stamp DESC;
+
+CREATE OR REPLACE VIEW location_history_view AS
+SELECT
+    ll.log_id,
+    ll.asset_id,
+    ll.op_id,
+    ST_Y(ll.current_location::geometry) AS latitude,
+    ST_X(ll.current_location::geometry) AS longitude,
+    ll.time_stamp
+FROM location_logs ll;
+
 --operators.py
 
 CREATE OR REPLACE VIEW operators_view AS
