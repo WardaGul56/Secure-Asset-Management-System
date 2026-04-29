@@ -28,54 +28,27 @@ def coords_to_wkt(coordinates: list[list[float]]) -> str:
 # POST /zones/create
 # only admins can create zones
 @router.post("/create")
-def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))): #this verifies if the user accessing is admin or not
+def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))):
     conn = get_main_db()
     cur = conn.cursor()
-
     try:
-        # validate minimum points for a polygon (at least 3 unique points)
         if len(data.coordinates) < 3:
-            raise HTTPException(status_code=400, detail="polygon needs at least 3 coordinates")
-
-        # convert coordinates to wkt format for postgis
+            raise HTTPException(status_code=400, detail="At least 3 coordinates required")
         wkt = coords_to_wkt(data.coordinates)
-
-        # get admin_id from security_admin using user_id from token
         cur.execute(
-            "select admin_id from security_admin where user_id = %s",
-            (user["user_id"],)
-        )
-        result = cur.fetchone()
-        if not result:
-            raise HTTPException(status_code=404, detail="admin not found")
-        admin_id = result[0]
-
-        # insert zone
-        cur.execute(
-            """
-            insert into zones (zone_name, boundary, is_forbidden, created_by)
-            values (%s, ST_GeomFromText(%s, 4326), %s, %s)
-            returning zone_id
-            """,
-            (data.zone_name, wkt, data.is_forbidden, admin_id)
+            "SELECT create_zone_fn(%s, %s, %s, %s)",
+            (data.zone_name, data.is_forbidden, wkt, user["user_id"])
         )
         zone_id = cur.fetchone()[0]
         conn.commit()
-
         return {
             "message": "zone created successfully",
-            "zone_id": zone_id,
-            "zone_name": data.zone_name,
-            "is_forbidden": data.is_forbidden
+            "zone_id": zone_id
         }
-
-    except HTTPException:
-        conn.rollback()
-        raise
 
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)
@@ -84,84 +57,38 @@ def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))): #this v
 # all roles can view zones — needed for map display
 @router.get("/all")
 def get_all_zones(user=Depends(require_role(["admin", "manager", "operator"]))):
+
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
-        # ST_AsGeoJSON converts postgis geometry to geojson
-        # react leaflet understands geojson natively
-        cur.execute(
-            """
-            select zone_id, zone_name, is_forbidden, created_by,
-                   ST_AsGeoJSON(boundary) as boundary
-            from zones
-            order by zone_id desc
-            """
-        )
+        cur.execute("SELECT * FROM zones_view")
         rows = cur.fetchall()
 
-        zones_list = [
-            {
-                "zone_id": row[0],
-                "zone_name": row[1],
-                "is_forbidden": row[2],
-                "created_by": row[3],
-                "boundary": row[4]  # geojson string — leaflet uses this directly
-            }
-            for row in rows
-        ]
-
-        return {"zones": zones_list}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
-
-    finally:
-        close_db(conn, cur)
-
-
-@router.delete("/{zone_id}")
-def delete_zone(zone_id: int, user=Depends(require_role(["admin"]))):
-    conn = get_main_db()
-    cur = conn.cursor()
-
-    try:
-        # check zone exists
-        cur.execute("select zone_id from zones where zone_id = %s", (zone_id,))
-        if not cur.fetchone():
-            raise HTTPException(status_code=404, detail="zone not found")
-
-        cur.execute("delete from zones where zone_id = %s", (zone_id,))
-        conn.commit()
-
-        return {"message": "zone deleted successfully"}
-
-    except HTTPException:
-        conn.rollback()
-        raise
-
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        return {
+            "zones": [
+                {
+                    "zone_id": r[0],
+                    "zone_name": r[1],
+                    "is_forbidden": r[2],
+                    "created_by": r[3],
+                    "boundary": r[4]
+                }
+                for r in rows
+            ]
+        }
 
     finally:
         close_db(conn, cur)
 
 @router.get("/{zone_id}")
 def get_zone(zone_id: int, user=Depends(require_role(["admin", "manager", "operator"]))):
+
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
-        cur.execute(
-            """
-            select zone_id, zone_name, is_forbidden, created_by,
-                   ST_AsGeoJSON(boundary) as boundary
-            from zones
-            where zone_id = %s
-            """,
-            (zone_id,)
-        )
+        cur.execute("SELECT * FROM get_zone_fn(%s)", (zone_id,))
         row = cur.fetchone()
 
         if not row:
@@ -175,11 +102,25 @@ def get_zone(zone_id: int, user=Depends(require_role(["admin", "manager", "opera
             "boundary": row[4]
         }
 
-    except HTTPException:
-        raise
+    finally:
+        close_db(conn, cur)
+
+
+@router.delete("/{zone_id}")
+def delete_zone(zone_id: int, user=Depends(require_role(["admin"]))):
+
+    conn = get_main_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT delete_zone_fn(%s)", (zone_id,))
+        conn.commit()
+
+        return {"message": "zone deleted successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"server error: {e}")
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
     finally:
         close_db(conn, cur)
