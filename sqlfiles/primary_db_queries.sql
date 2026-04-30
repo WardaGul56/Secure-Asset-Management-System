@@ -5,12 +5,12 @@ CREATE OR REPLACE FUNCTION create_asset_fn(
     p_asset_name    TEXT,
     p_plate_number  TEXT
 )
-RETURNS TABLE(asset_id INT, asset_name TEXT, plate_number TEXT) AS $$
+RETURNS TABLE(fn_asset_id INT, fn_asset_name TEXT, fn_plate_number TEXT) AS $$
 DECLARE
     v_asset_id INT;
 BEGIN
     -- check duplicate plate
-    IF EXISTS (SELECT 1 FROM asset WHERE plate_number = p_plate_number) THEN
+    IF EXISTS (SELECT 1 FROM asset WHERE fn_plate_number = p_plate_number) THEN
         RAISE EXCEPTION 'plate number already exists';
     END IF;
 
@@ -18,14 +18,15 @@ BEGIN
     VALUES (p_asset_name, p_plate_number, 'scheduled')
     RETURNING asset.asset_id INTO v_asset_id;
 
-    asset_id    := v_asset_id;
-    asset_name  := p_asset_name;
-    plate_number := p_plate_number;
+    fn_asset_id    := v_asset_id;
+    fn_asset_name  := p_asset_name;
+    fn_plate_number := p_plate_number;
 
     RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
-
+--DROP FUNCTION create_asset_fn(text,text);
+--select create_asset_fn('Usman Crane','DD-57');
 
 -- view to list all assets
 CREATE OR REPLACE VIEW assets_view AS
@@ -36,14 +37,14 @@ SELECT
     scheduled_status
 FROM asset
 ORDER BY asset_id DESC;
-
+--select * from assets_view;
 
 -- update asset status function
 -- raises exceptions for each failure case
 -- Python catches them via the generic except block
 CREATE OR REPLACE FUNCTION update_asset_status_fn(
     p_asset_id      INT,
-    p_new_status    TEXT,
+    p_new_status    scheduled_status_type,
     p_user_id       INT
 )
 RETURNS VOID AS $$
@@ -74,7 +75,8 @@ BEGIN
     WHERE asset_id = p_asset_id;
 END;
 $$ LANGUAGE plpgsql;
-
+--drop function update_asset_status_fn(int,text,int);
+--select update_asset_status_fn(2,'done',2);
 
 -- get single asset function
 CREATE OR REPLACE FUNCTION get_asset_fn(p_asset_id INT)
@@ -95,6 +97,8 @@ BEGIN
     WHERE a.asset_id = p_asset_id;
 END;
 $$ LANGUAGE plpgsql;
+--select get_asset_fn(2);
+
 
 --assignment.py
 -- create assignment function
@@ -163,7 +167,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+select create_assignment_fn(5,'op_001',7);
 -- complete assignment function
 CREATE OR REPLACE FUNCTION complete_assignment_fn(
     p_assignment_id INT,
@@ -202,7 +206,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+select complete_assignment_fn(1,2);
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
 SELECT

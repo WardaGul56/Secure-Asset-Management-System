@@ -91,11 +91,11 @@ create extension postgres_fdw;
 
 create server vault_server
     foreign data wrapper postgres_fdw
-    options (host 'localhost', dbname 'VaultDatabase', port '5433');
+    options (host 'localhost', dbname 'Vault Database', port '5432');
 
 create user mapping for postgres
     server vault_server
-    options (user 'postgres', password 'yourpassword');
+    options (user 'postgres', password 'pinky2512');
 
 create schema vault_schema;
 
