@@ -4,7 +4,7 @@ create extension pgcrypto;
 --creating enum types for later use
 create type role_type as enum ('admin', 'manager', 'operator');
 create type department_type as enum ('logistics', 'security_patrol');
-create type scheduled_status_type as enum ('scheduled', 'in_progress', 'done');
+create type scheduled_status_type as enum ('scheduled', 'in_progress', 'unscheduled');
 create type assignment_status_type as enum ('active', 'completed');
 
 --tables creation
@@ -58,8 +58,9 @@ create table asset(
 	asset_id serial primary key,
 	asset_name varchar(50) not null,
 	plate_number varchar(20) not null unique,
-	scheduled_status scheduled_status_type not null default 'scheduled' --check this out too
+	scheduled_status scheduled_status_type not null default 'unscheduled' --check this out too
 );
+
 create table location_logs(
 	log_id serial primary key,
 	asset_id int not null,
