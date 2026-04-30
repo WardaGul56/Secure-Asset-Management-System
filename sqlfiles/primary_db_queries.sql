@@ -296,7 +296,7 @@ BEGIN
     -- validate operator assignment + active
     IF NOT EXISTS (
         SELECT 1
-        FROM assignment
+        FROM assignments
         WHERE op_id = p_op_id
           AND asset_id = p_asset_id
           AND status = 'active'
