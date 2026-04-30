@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from database import get_main_db, close_db
-from auth_utils import require_role, hash_password
+from auth_utils import require_role
 
 router = APIRouter()
 

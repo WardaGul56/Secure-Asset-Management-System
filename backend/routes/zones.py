@@ -88,7 +88,7 @@ def get_zone(zone_id: int, user=Depends(require_role(["admin", "manager", "opera
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT * FROM get_zone_fn(%s)", (zone_id))
+        cur.execute("SELECT * FROM get_zone_fn(%s)", (zone_id,))
         row = cur.fetchone()
 
         if not row:

@@ -1,4 +1,5 @@
 create extension postgis;
+create extension pgcrypto;
 
 --creating enum types for later use
 create type role_type as enum ('admin', 'manager', 'operator');
@@ -63,7 +64,7 @@ create table location_logs(
 	log_id serial primary key,
 	asset_id int not null,
 	op_id varchar(20) not null,
-	current_location GEOMETRY(POLYGON, 4326) not null,
+	current_location GEOMETRY(POINT, 4326) not null,
 	time_stamp TIMESTAMP not null default current_timestamp,
 	foreign key (asset_id) references asset(asset_id),
 	foreign key (op_id) references operators(op_id)
@@ -84,23 +85,20 @@ create table dummy(
 	asset_name_fake VARCHAR(20),
 	location_fake VARCHAR(50)
 );
-create table honeypot_logs(
-	log_id serial primary key,
-	ip_address varchar(45) not null, -- IPv6 support
-	user_agent text,
-	query text,
-	endpoint varchar(255) not null,
-	logged_at timestamp not null default current_timestamp
-);
-create table breach_logs(
-	breach_id serial primary key,
-	log_id int not null,
-	asset_id int not null,
-	zone_id int not null,
-	breach_type varchar(50) not null,
-	detected_at timestamp not null default current_timestamp,
-	details text,
-	foreign key (log_id) references location_logs(log_id),
-	foreign key (asset_id) references asset(asset_id),
-	foreign key (zone_id) references zones(zone_id)
-);
+
+--this connects both databases i.e. Primary Database and Vault Database
+create extension postgres_fdw;
+
+create server vault_server
+    foreign data wrapper postgres_fdw
+    options (host 'localhost', dbname 'VaultDatabase', port '5433');
+
+create user mapping for postgres
+    server vault_server
+    options (user 'postgres', password 'yourpassword');
+
+create schema vault_schema;
+
+import foreign schema public
+    from server vault_server
+    into vault_schema;

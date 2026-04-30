@@ -139,7 +139,7 @@ BEGIN
 
     -- check asset not already actively assigned
     IF EXISTS (
-        SELECT 1 FROM assignment
+        SELECT 1 FROM assignments
         WHERE asset_id = p_asset_id AND status = 'active'
     ) THEN
         RAISE EXCEPTION 'asset is already actively assigned';
@@ -147,14 +147,14 @@ BEGIN
 
     -- check operator not already actively assigned
     IF EXISTS (
-        SELECT 1 FROM assignment
+        SELECT 1 FROM assignments
         WHERE op_id = p_op_id AND status = 'active'
     ) THEN
         RAISE EXCEPTION 'operator already has an active assignment';
     END IF;
 
     -- create assignment
-    INSERT INTO assignment (manager_id, op_id, asset_id, status)
+    INSERT INTO assignments (manager_id, op_id, asset_id, status)
     VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
     RETURNING assignment.assignment_id INTO v_assignment_id;
 
@@ -185,7 +185,7 @@ BEGIN
 
     -- check assignment exists and is active
     SELECT status INTO v_status
-    FROM assignment
+    FROM assignments
     WHERE assignment_id = p_assignment_id;
 
     IF v_status IS NULL THEN
@@ -196,7 +196,7 @@ BEGIN
         RAISE EXCEPTION 'assignment is already completed';
     END IF;
 
-    UPDATE assignment
+    UPDATE assignments
     SET status = 'completed'
     WHERE assignment_id = p_assignment_id;
 END;
@@ -215,7 +215,7 @@ SELECT
     ast.asset_name,
     ast.plate_number,
     u.name AS operator_name
-FROM assignment a
+FROM assignments a
 JOIN asset ast ON a.asset_id = ast.asset_id
 JOIN operators o ON a.op_id = o.op_id
 JOIN users u ON o.user_id = u.user_id
@@ -280,24 +280,6 @@ CREATE TABLE IF NOT EXISTS sql_breach (
     session_id TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE OR REPLACE FUNCTION log_sqli_attempt(
-    p_ip TEXT,
-    p_input TEXT,
-    p_session TEXT
-)
-RETURNS VOID AS $$
-BEGIN
-    INSERT INTO sql_breach(attacker_ip, malicious_input, session_id)
-    VALUES (p_ip, p_input, p_session);
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE VIEW honeypot_assets_view AS
-SELECT
-    asset_name_fake,
-    location_fake
-FROM dummy;
 
 --location.py
 CREATE OR REPLACE FUNCTION log_location_fn(
@@ -634,3 +616,31 @@ BEGIN
     DELETE FROM zones WHERE zone_id = p_zone_id;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- geofence breach trigger
+create or replace function check_geofence_breach()
+returns trigger as $$
+declare
+    breached_zone record;
+begin
+    select zone_id into breached_zone
+    from zones
+    where is_forbidden = true
+    and st_contains(boundary, new.current_location)
+    limit 1;
+
+    if found then
+        -- writes to vault db via fdw
+        insert into vault_schema.geofence_breach (log_id, asset_id, zone_id, detected_at)
+        values (new.log_id, new.asset_id, breached_zone.zone_id, current_timestamp);
+    end if;
+
+    return new;
+end;
+$$ language plpgsql;
+
+create trigger geofence_breach_trigger
+after insert on location_logs
+for each row
+execute function check_geofence_breach();

@@ -34,10 +34,5 @@ async def root():
     return {"message": "GeoGuard API is running"}
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    import uvicorn       ##server that runs fastapi
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-=======
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
->>>>>>> 846a6c8dbde54afd58915d68dbe5b91e0802bf8b

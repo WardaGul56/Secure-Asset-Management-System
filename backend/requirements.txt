@@ -1,6 +1,5 @@
 fastapi==0.115.0              # core web framework — handles all API routes
 uvicorn==0.30.6               # ASGI server — runs your fastapi app locally
-sqlalchemy==2.0.35            # ORM — helps manage db queries and connections cleanly
 psycopg2-binary==2.9.9        # postgresql driver — connects python to your postgres db
 python-jose[cryptography]==3.3.0  # JWT — generates and validates login tokens
 passlib[bcrypt]==1.7.4        # password hashing wrapper — simplifies bcrypt usage
@@ -8,7 +7,6 @@ bcrypt==4.2.0                 # actual bcrypt engine used by passlib under the h
 python-multipart==0.0.12      # parses form data — required for login forms in fastapi
 pydantic==2.9.2               # data validation — fastapi uses this for request/response models
 python-dotenv==1.0.1          # loads .env file — keeps db credentials out of your code
-geoalchemy2==0.15.2           # handles PostGIS geometry types (POINT, POLYGON) with sqlalchemy
 shapely==2.0.6                # geometry operations in python — helps construct/parse coordinates
 httpx==0.27.2                 # needed for testing fastapi endpoints (used with pytest)
 pytest==8.3.3                 # running backend tests
