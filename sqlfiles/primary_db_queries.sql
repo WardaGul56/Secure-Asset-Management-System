@@ -147,7 +147,7 @@ BEGIN
         WHERE asset_id = p_asset_id AND status = 'active'
     ) THEN
         RAISE EXCEPTION 'asset is already actively assigned';
-    END IF;
+    END IF; --CHECK IT USING UNSCHEDULED AND INTEGRATE 
 
     -- check operator not already actively assigned
     IF EXISTS (
@@ -167,46 +167,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-select create_assignment_fn(5,'op_001',7);
+select create_assignment_fn(2,'op_002',2);
+
+
 -- complete assignment function
 CREATE OR REPLACE FUNCTION complete_assignment_fn(
     p_assignment_id INT,
-    p_user_id       INT
+    p_user_id INT
 )
 RETURNS VOID AS $$
 DECLARE
-    v_department    TEXT;
-    v_status        TEXT;
+    v_department TEXT;
+    v_asset_id INT;
+    v_status TEXT;
 BEGIN
-    -- verify logistics manager
+    -- check manager role
     SELECT department INTO v_department
     FROM fleet_manager
     WHERE user_id = p_user_id;
 
-    IF v_department IS NULL OR v_department != 'logistics' THEN
+    IF v_department IS NULL OR v_department <> 'logistics' THEN
         RAISE EXCEPTION 'only logistics managers can complete assignments';
     END IF;
 
-    -- check assignment exists and is active
-    SELECT status INTO v_status
+    -- get assignment + asset
+    SELECT asset_id, status
+    INTO v_asset_id, v_status
     FROM assignments
     WHERE assignment_id = p_assignment_id;
 
-    IF v_status IS NULL THEN
+    IF v_asset_id IS NULL THEN
         RAISE EXCEPTION 'assignment not found';
     END IF;
 
-    IF v_status != 'active' THEN
-        RAISE EXCEPTION 'assignment is already completed';
+    IF v_status <> 'active' THEN
+        RAISE EXCEPTION 'assignment already completed';
     END IF;
 
+    -- update assignment
     UPDATE assignments
     SET status = 'completed'
     WHERE assignment_id = p_assignment_id;
+
+    -- update asset too 👇
+    UPDATE asset
+    SET scheduled_status = 'done' --CHANGE IT TO UNSCHEDULED
+    WHERE asset_id = v_asset_id;
+
 END;
 $$ LANGUAGE plpgsql;
 
-select complete_assignment_fn(1,2);
+select complete_assignment_fn(2,2);
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
 SELECT
