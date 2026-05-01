@@ -10,12 +10,12 @@ DECLARE
     v_asset_id INT;
 BEGIN
     -- check duplicate plate
-    IF EXISTS (SELECT 1 FROM asset WHERE fn_plate_number = p_plate_number) THEN
+    IF EXISTS (SELECT 1 FROM asset WHERE plate_number = p_plate_number) THEN
         RAISE EXCEPTION 'plate number already exists';
     END IF;
 
-    INSERT INTO asset (asset_name, plate_number, scheduled_status)
-    VALUES (p_asset_name, p_plate_number, 'scheduled')
+    INSERT INTO asset (asset_name, plate_number)
+    VALUES (p_asset_name, p_plate_number)
     RETURNING asset.asset_id INTO v_asset_id;
 
     fn_asset_id    := v_asset_id;
@@ -25,7 +25,7 @@ BEGIN
     RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
---DROP FUNCTION create_asset_fn(text,text);
+DROP FUNCTION create_asset_fn(text,text);
 --select create_asset_fn('Usman Crane','DD-57');
 
 -- view to list all assets
@@ -60,11 +60,6 @@ BEGIN
         RAISE EXCEPTION 'only logistics managers can update asset status';
     END IF;
 
-    -- validate status value
-    IF p_new_status NOT IN ('scheduled', 'in_progress', 'done') THEN
-        RAISE EXCEPTION 'invalid status value';
-    END IF;
-
     -- check asset exists
     IF NOT EXISTS (SELECT 1 FROM asset WHERE asset_id = p_asset_id) THEN
         RAISE EXCEPTION 'asset not found';
@@ -76,7 +71,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 --drop function update_asset_status_fn(int,text,int);
---select update_asset_status_fn(2,'done',2);
+
 
 -- get single asset function
 CREATE OR REPLACE FUNCTION get_asset_fn(p_asset_id INT)
@@ -141,14 +136,6 @@ BEGIN
         RAISE EXCEPTION 'asset not found';
     END IF;
 
-    -- check asset not already actively assigned
-    IF EXISTS (
-        SELECT 1 FROM assignments
-        WHERE asset_id = p_asset_id AND status = 'active'
-    ) THEN
-        RAISE EXCEPTION 'asset is already actively assigned';
-    END IF; --CHECK IT USING UNSCHEDULED AND INTEGRATE 
-
     -- check operator not already actively assigned
     IF EXISTS (
         SELECT 1 FROM assignments
@@ -207,21 +194,18 @@ BEGIN
 
     -- update assignment
     UPDATE assignments
-    SET status = 'completed'
-    WHERE assignment_id = p_assignment_id;
+	SET status = 'completed', completed_at = current_timestamp
+	WHERE assignment_id = p_assignment_id;
 
-    -- update asset too 👇
+    -- update asset too 
     UPDATE asset
-    SET scheduled_status = 'unscheduled' --CHANGE IT TO UNSCHEDULED
+    SET scheduled_status = 'done' --CHANGE IT TO UNSCHEDULED
     WHERE asset_id = v_asset_id;
 
 END;
 $$ LANGUAGE plpgsql;
 
---select complete_assignment_fn(3,2);
---select complete_assignment_fn(1,2);
---select * from assignments;
-
+select complete_assignment_fn(2,2);
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
 SELECT
@@ -265,7 +249,8 @@ BEGIN
         p.pass_hash::text
     FROM passwords p
     JOIN users u ON p.user_id = u.user_id
-    WHERE p.username = p_username;
+    WHERE p.username = login_user_fn.p_username;
+
 END;
 $$;
 
@@ -301,13 +286,13 @@ ORDER BY detected_at DESC;
 
 --maheen queries
 --honeypot.py
-CREATE TABLE IF NOT EXISTS sql_breach (
-    id SERIAL PRIMARY KEY,
-    attacker_ip TEXT,
-    malicious_input TEXT,
-    session_id TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+
+
+CREATE OR REPLACE VIEW honeypot_assets_view AS
+SELECT
+    asset_name_fake,
+    location_fake
+FROM dummy;
 
 --location.py
 CREATE OR REPLACE FUNCTION log_location_fn(
@@ -339,11 +324,19 @@ BEGIN
         p_op_id,
         ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)
     )
-    RETURNING log_id INTO v_log_id;
+	-- Inside log_location_fn, after the INSERT:
+	UPDATE asset
+	SET scheduled_status = 'in_progress'
+	WHERE asset_id = p_asset_id
+	AND scheduled_status = 'scheduled';
+    
+	RETURNING log_id INTO v_log_id;
 
     RETURN v_log_id;
 END;
 $$ LANGUAGE plpgsql;
+
+--select log_location_fn(1, 'op_003', 33.7215, 73.0433);
 
 CREATE OR REPLACE VIEW latest_locations_view AS
 SELECT DISTINCT ON (ll.asset_id)
@@ -357,6 +350,7 @@ SELECT DISTINCT ON (ll.asset_id)
 FROM location_logs ll
 JOIN asset a ON ll.asset_id = a.asset_id
 ORDER BY ll.asset_id, ll.time_stamp DESC;
+--select * from latest_locations_view;
 
 CREATE OR REPLACE VIEW location_history_view AS
 SELECT
@@ -367,6 +361,7 @@ SELECT
     ST_X(ll.current_location::geometry) AS longitude,
     ll.time_stamp
 FROM location_logs ll;
+--select * from location_history_view;
 
 --operators.py
 
@@ -380,12 +375,13 @@ SELECT
 FROM operators o
 JOIN users u ON o.user_id = u.user_id
 ORDER BY o.op_id;
+--select * from operators_view;
 
 CREATE OR REPLACE FUNCTION get_my_operators_fn(p_user_id INT)
 RETURNS TABLE (
-    op_id TEXT,
-    name TEXT,
-    username TEXT,
+    op_id varchar(20),
+    name varchar(50),
+    username VARCHAR(25),
     active_status BOOLEAN
 ) AS $$
 DECLARE
@@ -412,6 +408,8 @@ BEGIN
     ORDER BY o.op_id;
 END;
 $$ LANGUAGE plpgsql;
+--drop function get_my_operators_fn(int);
+--select get_my_operators_fn(3);
 
 CREATE OR REPLACE FUNCTION toggle_operator_fn(p_op_id TEXT, p_user_id INT)
 RETURNS TABLE (
@@ -449,6 +447,8 @@ BEGIN
     SELECT p_op_id, NOT v_current_status;
 END;
 $$ LANGUAGE plpgsql;
+select toggle_operator_fn('op_002', 3);
+
 
 --users.py
 

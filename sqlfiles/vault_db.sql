@@ -10,7 +10,7 @@ CREATE TABLE sql_breach (
     sb_id               SERIAL          PRIMARY KEY,
     attacker_ip         VARCHAR(45)     NOT NULL,
     malicious_input     TEXT            NOT NULL,
-    timestamp           TIMESTAMP       NOT NULL DEFAULT NOW(),
+    time_stamp           TIMESTAMP       NOT NULL DEFAULT NOW(),
     session_id  VARCHAR(100)
 );
 
@@ -27,17 +27,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE VIEW honeypot_assets_view AS
-SELECT
-    asset_name_fake,
-    location_fake
-FROM dummy;
-
 -- views for admin dashboard
 create or replace view sqli_breaches_view as
-select sb_id, attacker_ip, malicious_input, timestamp, session_id
+select sb_id, attacker_ip, malicious_input, time_stamp, session_id
 from sql_breach
-order by timestamp desc;
+order by time_stamp desc;
 
 create or replace view geofence_breaches_view as
 select gb_id, log_id, asset_id, zone_id, detected_at
