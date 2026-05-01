@@ -257,10 +257,10 @@ SELECT
     sb_id,
     attacker_ip,
     malicious_input,
-    timestamp,
+    time_stamp,
     session_id
-FROM sql_breach
-ORDER BY timestamp DESC;
+FROM vault_schema.sql_breach
+ORDER BY time_stamp DESC;
 
 CREATE OR REPLACE VIEW geofence_breaches_view AS
 SELECT
@@ -269,7 +269,7 @@ SELECT
     asset_id,
     zone_id,
     detected_at
-FROM geofence_breach
+FROM vault_schema.geofence_breach
 ORDER BY detected_at DESC;
 
 
@@ -296,7 +296,6 @@ RETURNS INT AS $$
 DECLARE
     v_log_id INT;
 BEGIN
-
     -- validate operator assignment + active
     IF NOT EXISTS (
         SELECT 1
@@ -315,13 +314,14 @@ BEGIN
         p_op_id,
         ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)
     )
-	-- Inside log_location_fn, after the INSERT:
-	UPDATE asset
-	SET scheduled_status = 'in_progress'
-	WHERE asset_id = p_asset_id
-	AND scheduled_status = 'scheduled';
-    
-	RETURNING log_id INTO v_log_id;
+    RETURNING log_id INTO v_log_id;  -- RETURNING must come immediately after INSERT
+
+    -- update asset status to in_progress only if it was scheduled
+    -- runs after insert is complete
+    UPDATE asset
+    SET scheduled_status = 'in_progress'
+    WHERE asset_id = p_asset_id
+    AND scheduled_status = 'scheduled';
 
     RETURN v_log_id;
 END;
@@ -404,8 +404,8 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION toggle_operator_fn(p_op_id TEXT, p_user_id INT)
 RETURNS TABLE (
-    op_id TEXT,
-    active_status BOOLEAN
+    out_op_id TEXT,
+    out_active_status BOOLEAN
 ) AS $$
 DECLARE
     v_manager_id TEXT;
@@ -421,9 +421,10 @@ BEGIN
     END IF;
 
     -- check operator ownership
-    SELECT active_status INTO v_current_status
-    FROM operators
-    WHERE op_id = p_op_id AND manager_id = v_manager_id;
+    -- no ambiguity now since out_active_status != active_status
+    SELECT o.active_status INTO v_current_status
+    FROM operators o
+    WHERE o.op_id = p_op_id AND o.manager_id = v_manager_id;
 
     IF v_current_status IS NULL THEN
         RAISE EXCEPTION 'operator not found or not in your team';
@@ -438,7 +439,9 @@ BEGIN
     SELECT p_op_id, NOT v_current_status;
 END;
 $$ LANGUAGE plpgsql;
-select toggle_operator_fn('op_002', 3);
+
+drop function toggle_operator_fn(text,int);
+select toggle_operator_fn('op_004', 2);
 
 
 --users.py
@@ -605,9 +608,9 @@ ORDER BY zone_id DESC;
 CREATE OR REPLACE FUNCTION get_zone_fn(p_zone_id INT)
 RETURNS TABLE (
     zone_id INT,
-    zone_name TEXT,
+    zone_name varchar(100),
     is_forbidden BOOLEAN,
-    created_by TEXT,
+    created_by varchar(20),
     boundary TEXT
 ) AS $$
 BEGIN
@@ -622,7 +625,8 @@ BEGIN
     WHERE z.zone_id = p_zone_id;
 END;
 $$ LANGUAGE plpgsql;
-
+drop function get_zone_fn(int);
+select get_zone_fn(2);
 --delete zone function
 CREATE OR REPLACE FUNCTION delete_zone_fn(p_zone_id INT)
 RETURNS VOID AS $$
