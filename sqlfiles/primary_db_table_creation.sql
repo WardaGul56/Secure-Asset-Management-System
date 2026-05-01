@@ -96,10 +96,11 @@ create server vault_server
 
 create user mapping for postgres
     server vault_server
-    options (user 'postgres', password 'pinky2512');
+    options (user 'postgres', password 'pgadmin4');
 
 create schema vault_schema;
 
 import foreign schema public
     from server vault_server
     into vault_schema;
+

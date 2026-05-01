@@ -160,12 +160,13 @@ BEGIN
     -- create assignment
     INSERT INTO assignments (manager_id, op_id, asset_id, status)
     VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
-    RETURNING assignment.assignment_id INTO v_assignment_id;
+    RETURNING assignments.assignment_id INTO v_assignment_id;
 
     assignment_id := v_assignment_id;
     RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
+
 
 select create_assignment_fn(2,'op_002',2);
 
@@ -211,13 +212,16 @@ BEGIN
 
     -- update asset too 👇
     UPDATE asset
-    SET scheduled_status = 'done' --CHANGE IT TO UNSCHEDULED
+    SET scheduled_status = 'unscheduled' --CHANGE IT TO UNSCHEDULED
     WHERE asset_id = v_asset_id;
 
 END;
 $$ LANGUAGE plpgsql;
 
-select complete_assignment_fn(2,2);
+--select complete_assignment_fn(3,2);
+--select complete_assignment_fn(1,2);
+--select * from assignments;
+
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
 SELECT
@@ -236,7 +240,11 @@ JOIN operators o ON a.op_id = o.op_id
 JOIN users u ON o.user_id = u.user_id
 ORDER BY a.assigned_at DESC;
 
+--select * from assignments_view;
+
+
 --auth.py
+--view for login info of user using his username
 CREATE OR REPLACE FUNCTION login_user_fn(p_username TEXT)
 RETURNS TABLE(
     user_id INT,
@@ -251,16 +259,17 @@ BEGIN
     RETURN QUERY
     SELECT
         u.user_id,
-        p.username,
-        u.role,
+        p.username::text,
+        u.role::text,
         u.is_active,
-        p.pass_hash
+        p.pass_hash::text
     FROM passwords p
     JOIN users u ON p.user_id = u.user_id
-    WHERE p.username = login_user_fn.p_username;
-
+    WHERE p.username = p_username;
 END;
 $$;
+
+--select * from login_user_fn('Dictator_Kim');
 
 --breaches.py
 CREATE OR REPLACE VIEW sqli_breaches_view AS
@@ -270,8 +279,11 @@ SELECT
     malicious_input,
     timestamp,
     session_id
-FROM sql_breach
+FROM vault_schema.sql_breach
 ORDER BY timestamp DESC;
+
+--select * from sqli_breaches_view;
+
 
 CREATE OR REPLACE VIEW geofence_breaches_view AS
 SELECT
@@ -280,9 +292,10 @@ SELECT
     asset_id,
     zone_id,
     detected_at
-FROM geofence_breach
+FROM vault_schema.geofence_breach
 ORDER BY detected_at DESC;
 
+--select * from geofence_breaches_view;
 
 
 
