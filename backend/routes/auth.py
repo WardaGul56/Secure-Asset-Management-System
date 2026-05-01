@@ -1,3 +1,14 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from database import get_main_db, close_db
+from auth_utils import verify_password, create_token
+
+router = APIRouter()
+
+class LoginInput(BaseModel):
+    username: str
+    password: str
+
 @router.post("/login")
 def login(data: LoginInput):
     conn = get_main_db()
@@ -5,7 +16,7 @@ def login(data: LoginInput):
 
     try:
         cur.execute(
-            "SELECT * FROM login_user_fn(%s)",
+            "SELECT * FROM login_user_fn(%s::text)",
             (data.username,)
         )
 

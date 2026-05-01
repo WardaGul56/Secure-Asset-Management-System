@@ -5,8 +5,12 @@ from fastapi import HTTPException, Header
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+from fastapi import Depends
+from fastapi.security import HTTPBearer
 
-load_dotenv()
+bearer_scheme = HTTPBearer()
+
+load_dotenv("../.env")
 
 JWT_SECRET = os.getenv("JWT_SECRET") ##key that is being used to assign tokens
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
@@ -39,14 +43,10 @@ def decode_token(token: str) -> dict:
     
 #this takes parameter of allowed roles and then authorizes that certain user
 def require_role(allowed_roles: list):
-    def checker(authorization: str = Header(...)):
-        # frontend sends: "Bearer <token>"
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="missing token")
-        token = authorization.split(" ")[1] #this extracts token
+    def checker(credentials=Depends(bearer_scheme)):
+        token = credentials.credentials  # automatically extracts token, no need to strip "Bearer "
         payload = decode_token(token)
         if payload.get("role") not in allowed_roles:
             raise HTTPException(status_code=403, detail="access denied")
-        return payload  # returns full user info to the route
+        return payload
     return checker
-

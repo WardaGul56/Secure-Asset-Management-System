@@ -2,7 +2,7 @@ import psycopg2     ##type of translator between python and postgres
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv("../.env")
 #fill values in this
 def get_main_db():
     try:   ##try to prevent crashing,if something goes wrong will jump to except
