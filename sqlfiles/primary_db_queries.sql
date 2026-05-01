@@ -99,7 +99,7 @@ $$ LANGUAGE plpgsql;
 -- create assignment function
 CREATE OR REPLACE FUNCTION create_assignment_fn(
     p_user_id   INT,
-    p_op_id     TEXT,
+    p_op_id     varchar(20),
     p_asset_id  INT
 )
 RETURNS TABLE(assignment_id INT) AS $$
@@ -146,14 +146,13 @@ BEGIN
 
     -- create assignment
     INSERT INTO assignments (manager_id, op_id, asset_id, status)
-    VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
-    RETURNING assignments.assignment_id INTO v_assignment_id;
+	VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
+	RETURNING assignments.assignment_id INTO assignment_id;
 
-    assignment_id := v_assignment_id;
-    RETURN NEXT;
+	RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
-
+drop function create_assignment_fn(int,text,int);
 select create_assignment_fn(2,'op_002',2);
 
 

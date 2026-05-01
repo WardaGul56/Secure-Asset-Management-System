@@ -1,10 +1,30 @@
+-- Drop and recreate cleanly
+DROP TABLE geofence_breach cascade;
+
 CREATE TABLE geofence_breach (
-    gb_id           SERIAL          PRIMARY KEY,
-    log_id          INTEGER         NOT NULL,
-    asset_id        VARCHAR(50)     NOT NULL,
-    zone_id         VARCHAR(50)     NOT NULL,
-    detected_at     TIMESTAMP       NOT NULL DEFAULT NOW()
+    gb_id        SERIAL,
+    log_id       INTEGER   NOT NULL,
+    asset_id     INTEGER   NOT NULL,
+    zone_id      INTEGER   NOT NULL,
+    detected_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Run on VaultDatabase:
+CREATE OR REPLACE FUNCTION fill_gb_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.gb_id IS NULL THEN
+        NEW.gb_id := (SELECT COALESCE(MAX(gb_id), 0) + 1 FROM geofence_breach);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER auto_gb_id
+BEFORE INSERT ON geofence_breach
+FOR EACH ROW EXECUTE FUNCTION fill_gb_id();
+
+--drop trigger auto_gb_id on geofence_breach;
 
 CREATE TABLE sql_breach (
     sb_id               SERIAL          PRIMARY KEY,
@@ -40,3 +60,6 @@ order by detected_at desc;
 
 grant usage on schema public to postgres;
 grant select on all tables in schema public to postgres;
+
+SELECT * FROM geofence_breach ORDER BY detected_at DESC;
+

@@ -70,6 +70,7 @@ create table location_logs(
 	foreign key (asset_id) references asset(asset_id),
 	foreign key (op_id) references operators(op_id)
 );
+
 create table assignments(
 	assignment_id serial primary key,
 	manager_id varchar(20) not null,
@@ -100,6 +101,8 @@ create user mapping for postgres
     options (user 'postgres', password 'pinky2512');
 
 create schema vault_schema;
+
+--drop schema vault_schema cascade;
 
 import foreign schema public
     from server vault_server
