@@ -154,7 +154,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
 select create_assignment_fn(2,'op_002',2);
 
 
@@ -199,13 +198,15 @@ BEGIN
 
     -- update asset too 
     UPDATE asset
-    SET scheduled_status = 'done' --CHANGE IT TO UNSCHEDULED
+    SET scheduled_status = 'unscheduled' 
     WHERE asset_id = v_asset_id;
 
 END;
 $$ LANGUAGE plpgsql;
 
-select complete_assignment_fn(2,2);
+--drop function complete_assignment_fn(int,int);
+--select complete_assignment_fn(2,2);
+
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
 SELECT
@@ -224,11 +225,7 @@ JOIN operators o ON a.op_id = o.op_id
 JOIN users u ON o.user_id = u.user_id
 ORDER BY a.assigned_at DESC;
 
---select * from assignments_view;
-
-
 --auth.py
---view for login info of user using his username
 CREATE OR REPLACE FUNCTION login_user_fn(p_username TEXT)
 RETURNS TABLE(
     user_id INT,
@@ -243,18 +240,16 @@ BEGIN
     RETURN QUERY
     SELECT
         u.user_id,
-        p.username::text,
-        u.role::text,
+        p.username,
+        u.role,
         u.is_active,
-        p.pass_hash::text
+        p.pass_hash
     FROM passwords p
     JOIN users u ON p.user_id = u.user_id
-    WHERE p.username = login_user_fn.p_username;
+    WHERE p.username = p_username;
 
 END;
 $$;
-
---select * from login_user_fn('Dictator_Kim');
 
 --breaches.py
 CREATE OR REPLACE VIEW sqli_breaches_view AS
@@ -264,11 +259,8 @@ SELECT
     malicious_input,
     timestamp,
     session_id
-FROM vault_schema.sql_breach
+FROM sql_breach
 ORDER BY timestamp DESC;
-
---select * from sqli_breaches_view;
-
 
 CREATE OR REPLACE VIEW geofence_breaches_view AS
 SELECT
@@ -277,10 +269,9 @@ SELECT
     asset_id,
     zone_id,
     detected_at
-FROM vault_schema.geofence_breach
+FROM geofence_breach
 ORDER BY detected_at DESC;
 
---select * from geofence_breaches_view;
 
 
 
@@ -453,10 +444,10 @@ select toggle_operator_fn('op_002', 3);
 --users.py
 
 CREATE OR REPLACE FUNCTION create_user_fn(
-    p_name TEXT,
-    p_email TEXT,
-    p_role TEXT,
-    p_department TEXT,
+    p_name varchar(50),
+    p_email varchar(100),
+    p_role role_type,
+    p_department department_type,
     p_manager_id TEXT
 )
 RETURNS TABLE(username TEXT, user_id INT, default_password TEXT) AS $$
@@ -467,67 +458,65 @@ DECLARE
     v_prefix TEXT;
     v_password TEXT;
 BEGIN
-
     -- check duplicate email
     IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
         RAISE EXCEPTION 'email already exists';
     END IF;
 
-    -- insert base user
-    INSERT INTO users (name, email, role, is_active)
-    VALUES (p_name, p_email, p_role, true)
-    RETURNING users.user_id INTO v_user_id;
-
-    -- decide prefix
+    -- decide prefix and count from correct sub-table BEFORE any insert
     IF p_role = 'admin' THEN
         v_prefix := 'admin';
+        SELECT COUNT(*) INTO v_count FROM security_admin;
+
     ELSIF p_role = 'manager' THEN
         v_prefix := 'manager';
+        SELECT COUNT(*) INTO v_count FROM fleet_manager;
+
     ELSIF p_role = 'operator' THEN
         v_prefix := 'op';
+        SELECT COUNT(*) INTO v_count FROM operators;
+
     ELSE
         RAISE EXCEPTION 'invalid role';
     END IF;
 
-    -- generate username
-    SELECT COUNT(*) INTO v_count
-    FROM users u
-    WHERE u.role = p_role;
-
+    -- generate username and default password
     v_username := v_prefix || '_' || LPAD((v_count + 1)::TEXT, 3, '0');
-
     v_password := v_username;
 
-    -- role-specific inserts
-    IF p_role = 'admin' THEN
+    -- insert base user AFTER username is ready
+    INSERT INTO users (name, email, role, is_active)
+    VALUES (p_name, p_email, p_role, true)
+    RETURNING users.user_id INTO v_user_id;
 
+    -- role specific inserts
+    IF p_role = 'admin' THEN
         INSERT INTO security_admin (admin_id, user_id, username)
         VALUES (v_username, v_user_id, v_username);
 
     ELSIF p_role = 'manager' THEN
-
-        IF p_department NOT IN ('logistics', 'security_patrol') THEN
-            RAISE EXCEPTION 'invalid department';
+        IF p_department IS NULL THEN
+            RAISE EXCEPTION 'department is required for managers';
         END IF;
-
         INSERT INTO fleet_manager (manager_id, user_id, username, department)
         VALUES (v_username, v_user_id, v_username, p_department);
 
     ELSIF p_role = 'operator' THEN
-
+        IF p_manager_id IS NULL THEN
+            RAISE EXCEPTION 'manager_id is required for operators';
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM fleet_manager WHERE manager_id = p_manager_id) THEN
             RAISE EXCEPTION 'manager not found';
         END IF;
-
         INSERT INTO operators (op_id, user_id, username, manager_id, active_status)
         VALUES (v_username, v_user_id, v_username, p_manager_id, false);
-
     END IF;
 
-    -- password table
+    -- insert hashed password
     INSERT INTO passwords (username, pass_hash, user_id)
     VALUES (v_username, crypt(v_password, gen_salt('bf')), v_user_id);
 
+    -- return result
     username := v_username;
     user_id := v_user_id;
     default_password := v_password;
@@ -535,6 +524,7 @@ BEGIN
     RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
+--select create_user_fn('shrek','shrekndonkey@farfaraway.com','manager','logistics',null);
 
 CREATE OR REPLACE FUNCTION deactivate_user_fn(p_user_id INT)
 RETURNS VOID AS $$

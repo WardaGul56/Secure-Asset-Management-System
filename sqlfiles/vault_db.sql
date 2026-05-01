@@ -37,6 +37,3 @@ create or replace view geofence_breaches_view as
 select gb_id, log_id, asset_id, zone_id, detected_at
 from geofence_breach
 order by detected_at desc;
-
-grant usage on schema public to postgres;
-grant select on all tables in schema public to postgres;
