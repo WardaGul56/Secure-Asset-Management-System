@@ -58,8 +58,25 @@ select gb_id, log_id, asset_id, zone_id, detected_at
 from geofence_breach
 order by detected_at desc;
 
-grant usage on schema public to postgres;
-grant select on all tables in schema public to postgres;
+-- Step 1: Recreate the trigger function cleanly
+CREATE OR REPLACE FUNCTION fill_gb_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.gb_id IS NULL THEN
+        NEW.gb_id := (SELECT COALESCE(MAX(gb_id), 0) + 1 FROM public.geofence_breach);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-SELECT * FROM geofence_breach ORDER BY detected_at DESC;
+-- Step 2: Recreate trigger
+DROP TRIGGER IF EXISTS auto_gb_id ON geofence_breach;
+CREATE TRIGGER auto_gb_id
+BEFORE INSERT ON geofence_breach
+FOR EACH ROW EXECUTE FUNCTION fill_gb_id();
 
+-- Step 3: Grant all permissions
+GRANT ALL PRIVILEGES ON TABLE geofence_breach TO postgres;
+GRANT ALL PRIVILEGES ON TABLE sql_breach TO postgres;
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO postgres;
+GRANT EXECUTE ON FUNCTION fill_gb_id() TO postgres;
