@@ -554,7 +554,8 @@ SELECT
     joining_date,
     is_active
 FROM users
-ORDER BY joining_date DESC;
+ORDER BY user_id DESC;
+
 --zones.py
 
 --function to create zone
