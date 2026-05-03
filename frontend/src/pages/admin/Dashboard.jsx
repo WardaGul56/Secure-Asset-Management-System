@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
-<<<<<<< HEAD
 import { useAuth } from '../../context/AuthContext'
 import { usersApi, assetsApi, zonesApi, breachesApi } from '../../api'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
-=======
-import { usersApi, assetsApi, zonesApi, breachesApi } from '../../api'
-
-export default function AdminDashboard() {
->>>>>>> f6bba86028646253c4155e021562d250c6128eda
   const [stats, setStats] = useState({ users: 0, assets: 0, zones: 0, breaches: 0 })
   const [loading, setLoading] = useState(true)
 
@@ -41,7 +35,6 @@ export default function AdminDashboard() {
     <>
       <Topbar title="Admin Overview" subtitle="System status and quick metrics" />
       <div className="page-body">
-<<<<<<< HEAD
         {/* Admin Profile Card */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -65,8 +58,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-=======
->>>>>>> f6bba86028646253c4155e021562d250c6128eda
         {loading ? (
           <div className="loading-center"><div className="spinner" /><span>Loading stats...</span></div>
         ) : (
