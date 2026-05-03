@@ -27,6 +27,12 @@ import OperatorLocation from './pages/operator/Location'
 import OperatorZones from './pages/operator/Zones'
 import OperatorSearch from './pages/operator/Search'
 
+// add this import at the top
+import HoneypotDashboard from './pages/HoneypotDashboard'
+
+// add this route — no auth guard needed, honeypot token gets them here
+<Route path="/honeypot-dashboard" element={<HoneypotDashboard />} />
+
 // ============================================
 // Auth Guard — redirects to login if not authenticated
 // ============================================
