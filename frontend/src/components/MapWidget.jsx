@@ -24,11 +24,34 @@ const truckIcon = L.divIcon({
   iconAnchor: [14, 14],
 })
 
+function getPolygonCenter(geoJson) {
+  // Compute centroid of the first polygon ring
+  try {
+    let coords = null
+    if (geoJson.type === 'Polygon') {
+      coords = geoJson.coordinates[0]
+    } else if (geoJson.type === 'Feature' && geoJson.geometry?.type === 'Polygon') {
+      coords = geoJson.geometry.coordinates[0]
+    } else if (geoJson.type === 'FeatureCollection') {
+      const first = geoJson.features[0]
+      if (first?.geometry?.type === 'Polygon') coords = first.geometry.coordinates[0]
+    }
+    if (!coords || coords.length === 0) return null
+    const lngs = coords.map(c => c[0])
+    const lats = coords.map(c => c[1])
+    return [
+      (Math.min(...lats) + Math.max(...lats)) / 2,
+      (Math.min(...lngs) + Math.max(...lngs)) / 2
+    ]
+  } catch { return null }
+}
+
 export default function MapWidget({ locations = [], zones = [], className = 'map-container', center = [33.72, 73.04] }) {
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
   const markersRef = useRef([])
   const zonesRef = useRef([])
+  const labelsRef = useRef([])
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
@@ -74,23 +97,27 @@ export default function MapWidget({ locations = [], zones = [], className = 'map
     })
   }, [locations])
 
-  // Update zones
+  // Update zones with name labels
   useEffect(() => {
     if (!mapInstance.current) return
     zonesRef.current.forEach(z => z.remove())
     zonesRef.current = []
+    labelsRef.current.forEach(l => l.remove())
+    labelsRef.current = []
 
     zones.forEach(zone => {
       if (!zone.boundary) return
       try {
         const geo = typeof zone.boundary === 'string' ? JSON.parse(zone.boundary) : zone.boundary
+        const color = zone.is_forbidden ? '#ef4444' : '#00d4aa'
+
         const layer = L.geoJSON(geo, {
           style: {
-            color: zone.is_forbidden ? '#ef4444' : '#00d4aa',
-            fillColor: zone.is_forbidden ? '#ef4444' : '#00d4aa',
-            fillOpacity: 0.08,
+            color,
+            fillColor: color,
+            fillOpacity: 0.1,
             weight: 2,
-            opacity: 0.6,
+            opacity: 0.7,
             dashArray: zone.is_forbidden ? '6 4' : null,
           }
         })
@@ -98,12 +125,35 @@ export default function MapWidget({ locations = [], zones = [], className = 'map
           .bindPopup(`
             <div style="font-family: 'DM Sans', sans-serif;">
               <div style="font-weight: 700; font-size: 13px;">${zone.zone_name}</div>
-              <div style="font-size: 11px; margin-top: 4px; color: ${zone.is_forbidden ? '#ef4444' : '#10b981'};">
+              <div style="font-size: 11px; margin-top: 4px; color: ${color};">
                 ${zone.is_forbidden ? '⛔ Forbidden Zone' : '✅ Allowed Zone'}
               </div>
             </div>
           `)
         zonesRef.current.push(layer)
+
+        // Add zone name label at centroid
+        const centroid = getPolygonCenter(geo)
+        if (centroid) {
+          const label = L.divIcon({
+            html: `<div style="
+              background: ${zone.is_forbidden ? 'rgba(239,68,68,0.85)' : 'rgba(0,212,170,0.85)'};
+              color: #fff;
+              padding: 3px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: 600;
+              font-family: 'DM Sans', sans-serif;
+              white-space: nowrap;
+              box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            ">${zone.zone_name}</div>`,
+            className: '',
+            iconAnchor: [0, 0],
+          })
+          const labelMarker = L.marker(centroid, { icon: label, interactive: false })
+            .addTo(mapInstance.current)
+          labelsRef.current.push(labelMarker)
+        }
       } catch (e) {
         console.warn('Invalid zone boundary', e)
       }
