@@ -13,7 +13,7 @@ import AdminAssets from './pages/admin/Assets'
 import AdminZones from './pages/admin/Zones'
 import AdminBreaches from './pages/admin/Breaches'
 import AdminLiveMap from './pages/admin/LiveMap'
-import AdminAssignments from './pages/admin/Assignments'
+import AdminAssignments from './pages/admin/Assignment'
 
 // Manager
 import ManagerDashboard from './pages/manager/Dashboard'

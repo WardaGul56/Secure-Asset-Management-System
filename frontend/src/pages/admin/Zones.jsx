@@ -189,10 +189,6 @@ export default function AdminZones() {
                   Format: longitude, latitude — one coordinate pair per line. Minimum 3 points.
                 </div>
               </div>
-              <div className="alert alert-info">
-                <span>💡</span> Quick test — paste this for a forbidden zone in Islamabad:<br />
-                <code style={{ fontSize: 11 }}>73.04, 33.72{'\n'}73.06, 33.72{'\n'}73.06, 33.74{'\n'}73.04, 33.74</code>
-              </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
