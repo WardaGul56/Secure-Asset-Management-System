@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
-import { usersApi } from '../../api'
+import { usersApi, operatorsApi } from '../../api'
 
 function roleBadge(role) {
   if (role === 'admin') return <span className="badge badge-violet">Admin</span>
@@ -19,19 +19,22 @@ export default function AdminUsers() {
   const [submitting, setSubmitting] = useState(false)
 
   const fetchUsers = () => {
-    usersApi.getAll()
-      .then(r => setUsers(r.data.users || []))
-      .finally(() => setLoading(false))
+    usersApi.getAll().then(r => setUsers(r.data.users || [])).finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers()
+    operatorsApi.getAll().then(r => {
+      // We need managers — fetch from users filtered by role
+    }).catch(() => {})
+  }, [])
 
-  // Fetch real manager list from dedicated endpoint
+  // Fetch managers for operator creation dropdown
   useEffect(() => {
     if (form.role === 'operator') {
-      usersApi.getManagers()
-        .then(r => setManagers(r.data.managers || []))
-        .catch(() => setManagers([]))
+      usersApi.getAll().then(r => {
+        setManagers((r.data.users || []).filter(u => u.role === 'manager'))
+      }).catch(() => {})
     }
   }, [form.role])
 
@@ -193,16 +196,11 @@ export default function AdminUsers() {
                       <select className="form-input" value={form.manager_id} onChange={e => setForm(p => ({ ...p, manager_id: e.target.value }))} required>
                         <option value="">Select manager</option>
                         {managers.map(m => (
-                          <option key={m.manager_id} value={m.manager_id}>
-                            {m.name} — {m.department} ({m.manager_id})
+                          <option key={m.user_id} value={`manager_${String(m.user_id).padStart(3,'0')}`}>
+                            {m.name} (manager_{String(m.user_id).padStart(3,'0')})
                           </option>
                         ))}
                       </select>
-                      {managers.length === 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--accent-amber)', marginTop: 4 }}>
-                          ⚠ No active managers found. Create a manager first.
-                        </div>
-                      )}
                     </div>
                   )}
                   <div className="modal-footer">

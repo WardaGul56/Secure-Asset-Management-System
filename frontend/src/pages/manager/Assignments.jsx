@@ -1,16 +1,8 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
 import { assignmentsApi, operatorsApi, assetsApi } from '../../api'
-import { useAuth } from '../../context/AuthContext'
-
-const statusBadge = (s) => {
-  if (s === 'active') return <span className="badge badge-green">● Active</span>
-  if (s === 'scheduled') return <span className="badge badge-blue">Scheduled</span>
-  return <span className="badge badge-gray">Completed</span>
-}
 
 export default function ManagerAssignments() {
-  const { user } = useAuth()
   const [assignments, setAssignments] = useState([])
   const [operators, setOperators] = useState([])
   const [assets, setAssets] = useState([])
@@ -19,7 +11,6 @@ export default function ManagerAssignments() {
   const [form, setForm] = useState({ op_id: '', asset_id: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [isLogistics, setIsLogistics] = useState(false)
 
   const fetchAll = () => {
     Promise.all([
@@ -28,22 +19,14 @@ export default function ManagerAssignments() {
       assetsApi.getAll(),
     ]).then(([a, o, ast]) => {
       setAssignments(a.data.assignments || [])
-      // Only show ACTIVE operators — never assign to inactive
       setOperators((o.data.operators || []).filter(op => op.active_status))
-      // Only assets that are unscheduled (available to schedule)
-      setAssets((ast.data.assets || []).filter(a => a.scheduled_status === 'unscheduled'))
+      setAssets((ast.data.assets || []).filter(a =>
+        a.scheduled_status === 'unscheduled' || a.scheduled_status === 'scheduled'
+      ))
     }).catch(console.error).finally(() => setLoading(false))
   }
 
-  useEffect(() => {
-    // Detect if this manager is logistics by checking if they get operators
-    // (patrol managers won't need assignment creation anyway)
-    // We check department from token if available, else allow attempt and let backend reject
-    fetchAll()
-    // Check if logistics manager (backend enforces, but we hide the button for patrol)
-    // If department info were stored in token we'd use it; for now we optimistically show and backend guards
-    setIsLogistics(true) // Backend will enforce; UI will show button but backend rejects patrol managers
-  }, [])
+  useEffect(() => { fetchAll() }, [])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -85,11 +68,7 @@ export default function ManagerAssignments() {
       <Topbar
         title="Assignments"
         subtitle="Manage operator-asset assignments"
-        actions={
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            + New Assignment
-          </button>
-        }
+        actions={<button className="btn btn-primary" onClick={() => setShowModal(true)}>+ New Assignment</button>}
       />
       <div className="page-body">
         <div className="card">
@@ -105,13 +84,11 @@ export default function ManagerAssignments() {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Manager</th>
                     <th>Operator</th>
                     <th>Asset</th>
                     <th>Plate</th>
                     <th>Assigned At</th>
                     <th>Status</th>
-                    <th>Notes</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -119,17 +96,17 @@ export default function ManagerAssignments() {
                   {assignments.map(a => (
                     <tr key={a.assignment_id}>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>#{a.assignment_id}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{a.manager_id}</td>
                       <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{a.operator_name}</td>
                       <td>🚛 {a.asset_name}</td>
                       <td><span className="badge badge-gray">{a.plate_number}</span></td>
                       <td style={{ fontSize: 12 }}>{new Date(a.assigned_at).toLocaleDateString()}</td>
-                      <td>{statusBadge(a.status)}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.notes || '—'}
+                      <td>
+                        {a.status === 'active'
+                          ? <span className="badge badge-green">● Active</span>
+                          : <span className="badge badge-gray">Completed</span>}
                       </td>
                       <td>
-                        {(a.status === 'active' || a.status === 'scheduled') && (
+                        {a.status === 'active' && (
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleComplete(a.assignment_id)}
@@ -157,9 +134,6 @@ export default function ManagerAssignments() {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">Create New Assignment</div>
-            <div className="alert alert-info" style={{ marginBottom: 12 }}>
-              <span>ℹ</span> Creating an assignment will automatically set the asset status to <strong>Scheduled</strong>. Only logistics managers can create assignments.
-            </div>
             {error && <div className="alert alert-error"><span>⚠</span> {error}</div>}
             <form onSubmit={handleCreate}>
               <div className="form-group">
@@ -179,12 +153,12 @@ export default function ManagerAssignments() {
                 </select>
                 {operators.length === 0 && (
                   <div style={{ fontSize: 11, color: 'var(--accent-amber)', marginTop: 4 }}>
-                    ⚠ No active operators on shift. Toggle operator shift status in My Team.
+                    ⚠ No active operators. Toggle operator shift status in My Team.
                   </div>
                 )}
               </div>
               <div className="form-group">
-                <label className="form-label">Asset (unscheduled/available only)</label>
+                <label className="form-label">Asset (available only)</label>
                 <select
                   className="form-input"
                   value={form.asset_id}
@@ -200,7 +174,7 @@ export default function ManagerAssignments() {
                 </select>
                 {assets.length === 0 && (
                   <div style={{ fontSize: 11, color: 'var(--accent-amber)', marginTop: 4 }}>
-                    ⚠ No unscheduled assets available.
+                    ⚠ No available assets. All assets may be actively assigned.
                   </div>
                 )}
               </div>

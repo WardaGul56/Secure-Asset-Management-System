@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
-import { useAuth } from '../../context/AuthContext'
 import { usersApi, assetsApi, zonesApi, breachesApi } from '../../api'
 
 export default function AdminDashboard() {
-  const { user } = useAuth()
   const [stats, setStats] = useState({ users: 0, assets: 0, zones: 0, breaches: 0 })
   const [loading, setLoading] = useState(true)
 
@@ -35,29 +33,6 @@ export default function AdminDashboard() {
     <>
       <Topbar title="Admin Overview" subtitle="System status and quick metrics" />
       <div className="page-body">
-        {/* Admin Profile Card */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{
-              width: 52, height: 52,
-              background: 'var(--accent-violet-dim)',
-              border: '1px solid rgba(139,92,246,0.2)',
-              borderRadius: 14,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 26
-            }}>⚙️</div>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {user?.username}
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                <span className="badge badge-violet">Admin</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>GeoGuard Fleet Management System</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {loading ? (
           <div className="loading-center"><div className="spinner" /><span>Loading stats...</span></div>
         ) : (

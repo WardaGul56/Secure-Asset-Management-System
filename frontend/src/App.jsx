@@ -4,16 +4,16 @@ import Sidebar from './components/Sidebar'
 
 // Pages
 import Login from './pages/Login'
-import HoneypotDashboard from './pages/HoneypotDashboard'
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminUsers from './pages/admin/Users'
 import AdminAssets from './pages/admin/Assets'
 import AdminZones from './pages/admin/Zones'
+import AdminAssignments from './pages/admin/Assignment'
 import AdminBreaches from './pages/admin/Breaches'
 import AdminLiveMap from './pages/admin/LiveMap'
-import AdminAssignments from './pages/admin/Assignments'
+
 
 // Manager
 import ManagerDashboard from './pages/manager/Dashboard'
@@ -28,16 +28,9 @@ import OperatorDashboard from './pages/operator/Dashboard'
 import OperatorLocation from './pages/operator/Location'
 import OperatorZones from './pages/operator/Zones'
 import OperatorSearch from './pages/operator/Search'
-import OperatorAssignments from './pages/operator/Assignments'
-
-// add this import at the top
-import HoneypotDashboard from './pages/HoneypotDashboard'
-
-// add this route — no auth guard needed, honeypot token gets them here
-<Route path="/honeypot-dashboard" element={<HoneypotDashboard />} />
 
 // ============================================
-// Auth Guard
+// Auth Guard — redirects to login if not authenticated
 // ============================================
 function RequireAuth({ children, allowedRoles }) {
   const { user, loading } = useAuth()
@@ -53,6 +46,7 @@ function RequireAuth({ children, allowedRoles }) {
   if (!user) return <Navigate to="/login" replace />
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // Redirect to their correct dashboard if they try to access wrong role's pages
     if (user.role === 'admin') return <Navigate to="/admin" replace />
     if (user.role === 'manager') return <Navigate to="/manager" replace />
     return <Navigate to="/operator" replace />
@@ -62,7 +56,7 @@ function RequireAuth({ children, allowedRoles }) {
 }
 
 // ============================================
-// Layout wrapper
+// Layout wrapper — sidebar + main content
 // ============================================
 function AppLayout({ children }) {
   return (
@@ -76,7 +70,7 @@ function AppLayout({ children }) {
 }
 
 // ============================================
-// Root redirect
+// Root redirect — send to correct dashboard based on role
 // ============================================
 function RootRedirect() {
   const { user, loading } = useAuth()
@@ -88,7 +82,6 @@ function RootRedirect() {
   if (!user) return <Navigate to="/login" replace />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
   if (user.role === 'manager') return <Navigate to="/manager" replace />
-  if (user.role === 'honeypot') return <Navigate to="/honeypot-dashboard" replace />
   return <Navigate to="/operator" replace />
 }
 
@@ -102,7 +95,6 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginRoute />} />
-          <Route path="/honeypot-dashboard" element={<HoneypotDashboard />} />
           <Route path="/" element={<RootRedirect />} />
 
           {/* Admin routes */}
@@ -134,11 +126,6 @@ export default function App() {
           <Route path="/admin/map" element={
             <RequireAuth allowedRoles={['admin']}>
               <AppLayout><AdminLiveMap /></AppLayout>
-            </RequireAuth>
-          } />
-          <Route path="/admin/assignments" element={
-            <RequireAuth allowedRoles={['admin']}>
-              <AppLayout><AdminAssignments /></AppLayout>
             </RequireAuth>
           } />
 
@@ -195,11 +182,6 @@ export default function App() {
               <AppLayout><OperatorSearch /></AppLayout>
             </RequireAuth>
           } />
-          <Route path="/operator/assignments" element={
-            <RequireAuth allowedRoles={['operator']}>
-              <AppLayout><OperatorAssignments /></AppLayout>
-            </RequireAuth>
-          } />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -209,13 +191,13 @@ export default function App() {
   )
 }
 
+// Redirect logged-in users away from login page
 function LoginRoute() {
   const { user, loading } = useAuth()
   if (loading) return <div className="loading-center" style={{ height: '100vh' }}><div className="spinner" /></div>
   if (user) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />
     if (user.role === 'manager') return <Navigate to="/manager" replace />
-    if (user.role === 'honeypot') return <Navigate to="/honeypot-dashboard" replace />
     return <Navigate to="/operator" replace />
   }
   return <Login />

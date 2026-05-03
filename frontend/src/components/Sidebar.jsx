@@ -6,7 +6,6 @@ const adminNav = [
   { label: 'Users', icon: '👤', path: '/admin/users' },
   { label: 'Assets', icon: '🚛', path: '/admin/assets' },
   { label: 'Zones', icon: '🗺', path: '/admin/zones' },
-  { label: 'Assignments', icon: '📋', path: '/admin/assignments' },
   { label: 'Breach Logs', icon: '🛡', path: '/admin/breaches' },
   { label: 'Live Map', icon: '📍', path: '/admin/map' },
 ]
@@ -22,7 +21,6 @@ const managerNav = [
 
 const operatorNav = [
   { label: 'My Dashboard', icon: '◈', path: '/operator' },
-  { label: 'My Assignments', icon: '📋', path: '/operator/assignments' },
   { label: 'Log Location', icon: '📍', path: '/operator/location' },
   { label: 'View Zones', icon: '🗺', path: '/operator/zones' },
   { label: 'Asset Search', icon: '🔍', path: '/operator/search' },

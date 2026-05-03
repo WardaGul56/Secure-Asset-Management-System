@@ -11,29 +11,22 @@ export default function Login() {
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
-  setError('')
-  setLoading(true)
-  try {
-    const res = await authApi.login(form)
-    const { token, role, username } = res.data
-    login(token, { username, role })
-
-    // honeypot role — send to fake dashboard
-    if (role === 'honeypot') {
-      navigate('/honeypot-dashboard')
-      return
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await authApi.login(form)
+      const { token, role, username } = res.data
+      login(token, { username, role })
+      if (role === 'admin') navigate('/admin')
+      else if (role === 'manager') navigate('/manager')
+      else navigate('/operator')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    if (role === 'admin') navigate('/admin')
-    else if (role === 'manager') navigate('/manager')
-    else navigate('/operator')
-  } catch (err) {
-    setError(err.message)
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <div className="login-page">
@@ -84,7 +77,6 @@ export default function Login() {
           </button>
         </form>
 
-        
       </div>
     </div>
   )
