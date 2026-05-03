@@ -11,22 +11,29 @@ export default function Login() {
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const res = await authApi.login(form)
-      const { token, role, username } = res.data
-      login(token, { username, role })
-      if (role === 'admin') navigate('/admin')
-      else if (role === 'manager') navigate('/manager')
-      else navigate('/operator')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+  e.preventDefault()
+  setError('')
+  setLoading(true)
+  try {
+    const res = await authApi.login(form)
+    const { token, role, username } = res.data
+    login(token, { username, role })
+
+    // honeypot role — send to fake dashboard
+    if (role === 'honeypot') {
+      navigate('/honeypot-dashboard')
+      return
     }
+
+    if (role === 'admin') navigate('/admin')
+    else if (role === 'manager') navigate('/manager')
+    else navigate('/operator')
+  } catch (err) {
+    setError(err.message)
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="login-page">
@@ -77,10 +84,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(59,130,246,0.08)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)' }}>
-          <div style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>Default Credentials</div>
-          <div style={{ fontSize: 12, color: '#8899bb' }}>Username and password are the same as the assigned username (e.g. <code style={{ color: '#00d4aa' }}>admin_001</code>)</div>
-        </div>
+        
       </div>
     </div>
   )
