@@ -1,12 +1,19 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Topbar from '../../components/Topbar'
 import { useAuth } from '../../context/AuthContext'
 import { assignmentsApi } from '../../api'
+=======
+import { useNavigate } from 'react-router-dom'
+import Topbar from '../../components/Topbar'
+import { useAuth } from '../../context/AuthContext'
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
 
 export default function OperatorDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+<<<<<<< HEAD
   const [activeAssignment, setActiveAssignment] = useState(null)
   const [loadingAssignment, setLoadingAssignment] = useState(true)
 
@@ -26,13 +33,23 @@ export default function OperatorDashboard() {
     { label: 'Log My Location', icon: '📍', desc: 'Submit your current GPS coordinates', path: '/operator/location', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
     { label: 'View Zone Map', icon: '🗺', desc: 'See forbidden zones on map', path: '/operator/zones', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
     { label: 'Asset Search', icon: '🔍', desc: 'Search assets by name', path: '/operator/search', color: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)' },
+=======
+
+  const actions = [
+    { label: 'Log My Location', icon: '📍', desc: 'Submit your current GPS coordinates', path: '/operator/location', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
+    { label: 'View Zone Map', icon: '🗺', desc: 'See active and forbidden zones on map', path: '/operator/zones', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
+    { label: 'Asset Search', icon: '🔍', desc: 'Search assets by name', path: '/operator/search', color: 'var(--accent-violet)', bg: 'var(--accent-violet-dim)' },
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
   ]
 
   return (
     <>
       <Topbar title="Operator Dashboard" subtitle={`Logged in as ${user?.username}`} />
       <div className="page-body">
+<<<<<<< HEAD
         {/* User Profile Card */}
+=======
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
@@ -43,6 +60,7 @@ export default function OperatorDashboard() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 28
             }}>👷</div>
+<<<<<<< HEAD
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
                 Welcome, {user?.username}
@@ -97,6 +115,20 @@ export default function OperatorDashboard() {
         </div>
 
         <div className="grid-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 0 }}>
+=======
+            <div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Welcome, {user?.username}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                Operator · GeoGuard Fleet System
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid-3">
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
           {actions.map(a => (
             <div
               key={a.label}

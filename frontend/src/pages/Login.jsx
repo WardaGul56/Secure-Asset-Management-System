@@ -11,6 +11,7 @@ export default function Login() {
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
+<<<<<<< HEAD
   e.preventDefault()
   setError('')
   setLoading(true)
@@ -34,6 +35,24 @@ export default function Login() {
     setLoading(false)
   }
 }
+=======
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await authApi.login(form)
+      const { token, role, username } = res.data
+      login(token, { username, role })
+      if (role === 'admin') navigate('/admin')
+      else if (role === 'manager') navigate('/manager')
+      else navigate('/operator')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
 
   return (
     <div className="login-page">
@@ -84,7 +103,10 @@ export default function Login() {
           </button>
         </form>
 
+<<<<<<< HEAD
         
+=======
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
       </div>
     </div>
   )

@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
 import { assignmentsApi, operatorsApi, assetsApi } from '../../api'
+<<<<<<< HEAD
 import { useAuth } from '../../context/AuthContext'
 
 export default function ManagerDashboard() {
   const { user } = useAuth()
   const [stats, setStats] = useState({ assignments: 0, active: 0, team: 0, assets: 0 })
+=======
+
+export default function ManagerDashboard() {
+  const [stats, setStats] = useState({ assignments: 0, active: 0, team: 0, assets: 0 })
+  const [loading, setLoading] = useState(true)
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
 
   useEffect(() => {
     Promise.all([
@@ -16,6 +23,7 @@ export default function ManagerDashboard() {
       const all = a.data.assignments || []
       setStats({
         assignments: all.length,
+<<<<<<< HEAD
         active: all.filter(x => x.status === 'active' || x.status === 'scheduled').length,
         team: t.data.operators?.length || 0,
         assets: ast.data.assets?.length || 0,
@@ -23,10 +31,27 @@ export default function ManagerDashboard() {
     }).catch(console.error)
   }, [])
 
+=======
+        active: all.filter(x => x.status === 'active').length,
+        team: t.data.operators?.length || 0,
+        assets: ast.data.assets?.length || 0,
+      })
+    }).catch(console.error).finally(() => setLoading(false))
+  }, [])
+
+  const cards = [
+    { label: 'Total Assignments', value: stats.assignments, icon: '📋', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
+    { label: 'Active Assignments', value: stats.active, icon: '⚡', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
+    { label: 'My Team Size', value: stats.team, icon: '👥', color: 'var(--accent-violet)', bg: 'var(--accent-violet-dim)' },
+    { label: 'Fleet Assets', value: stats.assets, icon: '🚛', color: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)' },
+  ]
+
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
   return (
     <>
       <Topbar title="Manager Overview" subtitle="Your fleet at a glance" />
       <div className="page-body">
+<<<<<<< HEAD
         {/* Manager Profile Card */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -77,6 +102,23 @@ export default function ManagerDashboard() {
             <div><span className="badge badge-gray" style={{ marginRight: 6 }}>Completed</span> Assignment finished, asset returned to pool</div>
           </div>
         </div>
+=======
+        {loading ? (
+          <div className="loading-center"><div className="spinner" /></div>
+        ) : (
+          <div className="stats-grid">
+            {cards.map(c => (
+              <div className="stat-card" key={c.label}>
+                <div className="stat-icon" style={{ background: c.bg, color: c.color }}>{c.icon}</div>
+                <div>
+                  <div className="stat-value" style={{ color: c.color }}>{c.value}</div>
+                  <div className="stat-label">{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+>>>>>>> f6bba86028646253c4155e021562d250c6128eda
       </div>
     </>
   )
