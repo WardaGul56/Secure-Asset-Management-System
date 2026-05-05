@@ -1,7 +1,7 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
-from dotenv import load_dotenv
+from fastapi import FastAPI       ##to import FastAPI class from the fastapi library.
+from fastapi.middleware.cors import CORSMiddleware  #CORS allows frontend n backend interaction
+from fastapi.security import HTTPBearer    #for jwt token
+from dotenv import load_dotenv          #to load environment variables from .env
 import os
 
 load_dotenv("../.env")
@@ -10,6 +10,7 @@ from routes import auth, users, zones, assets, operators, assignment, location, 
 
 security = HTTPBearer()
 
+#creates fastapi application object
 app = FastAPI(
     title="Secure Asset Management System",
     swagger_ui_parameters={"persistAuthorization": True},
@@ -35,6 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+#for allowing paths
 app.include_router(auth.router,         prefix="/auth",         tags=["Authentication"])
 app.include_router(users.router,        prefix="/users",        tags=["User Management"])
 app.include_router(zones.router,        prefix="/zones",        tags=["Zones"])
@@ -51,4 +53,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app",reload=True)
+    uvicorn.run("main:app",reload=True)   #uvicorn to run fastapi apps
