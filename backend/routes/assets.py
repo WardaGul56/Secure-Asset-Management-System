@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends  #depends used for db checks and authtication
 from pydantic import BaseModel
-from database import get_main_db, close_db
+from database import get_main_db, close_db  #close_db loses connection
 from auth_utils import require_role
 
-router = APIRouter()
+router = APIRouter()  
 
 class AssetInput(BaseModel):
     asset_name: str
@@ -23,11 +23,11 @@ def create_asset(data: AssetInput, user=Depends(require_role(["admin"]))):
 
     try:
         cur.execute(
-            "SELECT * FROM create_asset_fn(%s, %s)",
+            "SELECT * FROM create_asset_fn(%s, %s)",    #% to create sql safe coding,they r placeholders
             (data.asset_name, data.plate_number)
         )
         result = cur.fetchone()
-        conn.commit()
+        conn.commit()   #permanently saves changes to database
 
         return {
             "message": "asset created successfully",
@@ -36,7 +36,7 @@ def create_asset(data: AssetInput, user=Depends(require_role(["admin"]))):
             "plate_number": result[2]
         }
 
-    except Exception as e:
+    except Exception as e:  #catxhes errors n stores them in e
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -44,16 +44,17 @@ def create_asset(data: AssetInput, user=Depends(require_role(["admin"]))):
         close_db(conn, cur)
 
 
+
 # GET /assets/all
 # admins and managers can view all trucks
 @router.get("/all")
-def get_all_assets(user=Depends(require_role(["admin", "manager"]))):
+def get_all_assets(user=Depends(require_role(["admin", "manager"]))): #only manager n admin can access
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
         cur.execute("SELECT * FROM assets_view")
-        rows = cur.fetchall()
+        rows = cur.fetchall()      #gets all returned row from query above
 
         return {
             "assets": [
@@ -71,7 +72,7 @@ def get_all_assets(user=Depends(require_role(["admin", "manager"]))):
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
-        close_db(conn, cur)
+        close_db(conn, cur)  #con=connection,cur=cursor
 
 
 # PUT /assets/status
@@ -82,7 +83,7 @@ def update_asset_status(data: UpdateStatusInput, user=Depends(require_role(["man
     cur = conn.cursor()
 
     try:
-        cur.execute(
+        cur.execute(   #calls sql fxn
             "SELECT update_asset_status_fn(%s, %s, %s)",
             (data.asset_id, data.scheduled_status, user["user_id"])
         )
