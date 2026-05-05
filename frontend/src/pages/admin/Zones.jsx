@@ -8,7 +8,7 @@ export default function AdminZones() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [coords, setCoords] = useState('')
-  const [form, setForm] = useState({ zone_name: '', is_forbidden: true })
+  const [form, setForm] = useState({ zone_name: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const mapRef = useRef(null)
@@ -42,12 +42,12 @@ export default function AdminZones() {
         const geo = typeof zone.boundary === 'string' ? JSON.parse(zone.boundary) : zone.boundary
         const layer = L.geoJSON(geo, {
           style: {
-            color: zone.is_forbidden ? '#ef4444' : '#00d4aa',
-            fillColor: zone.is_forbidden ? '#ef4444' : '#00d4aa',
-            fillOpacity: 0.1, weight: 2, dashArray: zone.is_forbidden ? '6 4' : null
+            color: '#ef4444',
+            fillColor: '#ef4444',
+            fillOpacity: 0.1, weight: 2, dashArray: '6 4'
           }
         }).addTo(mapInstance.current)
-          .bindPopup(`<b>${zone.zone_name}</b><br>${zone.is_forbidden ? '⛔ Forbidden' : '✅ Allowed'}`)
+          .bindPopup(`<b>${zone.zone_name}</b><br>⛔ Forbidden`)
         zonesLayerRef.current.push(layer)
       } catch (e) {}
     })
@@ -78,7 +78,7 @@ export default function AdminZones() {
       fetchZones()
       setShowModal(false)
       setCoords('')
-      setForm({ zone_name: '', is_forbidden: true })
+      setForm({ zone_name: '' })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -107,12 +107,9 @@ export default function AdminZones() {
         <div className="card section">
           <div className="card-header">
             <div className="card-title">Zone Map</div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                <span style={{ color: '#ef4444' }}>■</span> Forbidden &nbsp;
-                <span style={{ color: '#00d4aa' }}>■</span> Allowed
-              </span>
-            </div>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <span style={{ color: '#ef4444' }}>■</span> Forbidden zones
+            </span>
           </div>
           <div ref={mapRef} className="map-container" />
         </div>
@@ -128,16 +125,14 @@ export default function AdminZones() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>ID</th><th>Zone Name</th><th>Type</th><th>Created By</th><th>Action</th></tr>
+                  <tr><th>ID</th><th>Zone Name</th><th>Created By</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                   {zones.map(z => (
                     <tr key={z.zone_id}>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>#{z.zone_id}</td>
-                      <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{z.zone_name}</td>
-                      <td>{z.is_forbidden
-                        ? <span className="badge badge-red">⛔ Forbidden</span>
-                        : <span className="badge badge-green">✅ Allowed</span>}
+                      <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                        <span style={{ marginRight: 6 }}>⛔</span>{z.zone_name}
                       </td>
                       <td style={{ fontSize: 12 }}>{z.created_by}</td>
                       <td>
@@ -167,13 +162,6 @@ export default function AdminZones() {
               <div className="form-group">
                 <label className="form-label">Zone Name</label>
                 <input className="form-input" value={form.zone_name} onChange={e => setForm(p => ({ ...p, zone_name: e.target.value }))} required placeholder="e.g. Restricted Warehouse A" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Zone Type</label>
-                <select className="form-input" value={form.is_forbidden} onChange={e => setForm(p => ({ ...p, is_forbidden: e.target.value === 'true' }))}>
-                  <option value="true">⛔ Forbidden (restricted area)</option>
-                  <option value="false">✅ Allowed (patrol area)</option>
-                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Coordinates (one per line: longitude, latitude)</label>

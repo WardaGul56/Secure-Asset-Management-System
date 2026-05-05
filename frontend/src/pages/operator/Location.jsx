@@ -9,12 +9,6 @@ export default function OperatorLocation() {
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const presets = [
-    { label: 'Inside Forbidden Zone', lat: 33.73, lon: 73.05, note: 'Triggers breach alert' },
-    { label: 'Allowed Zone Area', lat: 33.69, lon: 73.08, note: 'Normal location' },
-    { label: 'Islamabad Center', lat: 33.7215, lon: 73.0433, note: 'Default reference' },
-  ]
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -103,22 +97,6 @@ export default function OperatorLocation() {
               </form>
             </div>
 
-            <div className="card">
-              <div className="card-title" style={{ marginBottom: 14 }}>Quick Test Coordinates</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {presets.map(p => (
-                  <button
-                    key={p.label}
-                    className="btn btn-secondary"
-                    style={{ justifyContent: 'space-between', width: '100%' }}
-                    onClick={() => setForm(f => ({ ...f, latitude: String(p.lat), longitude: String(p.lon) }))}
-                  >
-                    <span>{p.label}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.note}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

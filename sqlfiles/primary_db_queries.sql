@@ -99,7 +99,7 @@ $$ LANGUAGE plpgsql;
 -- create assignment function
 CREATE OR REPLACE FUNCTION create_assignment_fn(
     p_user_id   INT,
-    p_op_id     varchar(20),
+    p_op_id     VARCHAR(20),
     p_asset_id  INT
 )
 RETURNS TABLE(assignment_id INT) AS $$
@@ -108,6 +108,7 @@ DECLARE
     v_department    TEXT;
     v_active_status BOOLEAN;
     v_assignment_id INT;
+    v_asset_status  TEXT;
 BEGIN
     -- verify manager is logistics
     SELECT manager_id, department INTO v_manager_id, v_department
@@ -131,9 +132,18 @@ BEGIN
         RAISE EXCEPTION 'operator is not active';
     END IF;
 
-    -- check asset exists
-    IF NOT EXISTS (SELECT 1 FROM asset WHERE asset_id = p_asset_id) THEN
+    -- check asset exists and get its status
+    SELECT scheduled_status INTO v_asset_status
+    FROM asset
+    WHERE asset_id = p_asset_id;
+
+    IF v_asset_status IS NULL THEN
         RAISE EXCEPTION 'asset not found';
+    END IF;
+
+    -- Allow assignment if asset is 'unscheduled' OR 'scheduled'
+    IF v_asset_status NOT IN ('unscheduled', 'scheduled') THEN
+        RAISE EXCEPTION 'asset is not available for assignment';
     END IF;
 
     -- check operator not already actively assigned
@@ -144,12 +154,20 @@ BEGIN
         RAISE EXCEPTION 'operator already has an active assignment';
     END IF;
 
-    -- create assignment
-    INSERT INTO assignments (manager_id, op_id, asset_id, status)
-	VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
-	RETURNING assignments.assignment_id INTO assignment_id;
 
-	RETURN NEXT;
+	-- create assignment
+    INSERT INTO assignments (manager_id, op_id, asset_id, status)
+    VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
+    RETURNING assignments.assignment_id INTO v_assignment_id;
+
+    -- update asset status to 'scheduled'
+    UPDATE asset
+    SET scheduled_status = 'scheduled'
+    WHERE asset_id = p_asset_id;
+
+    -- return result
+    assignment_id := v_assignment_id;
+    RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
 drop function create_assignment_fn(int,text,int);
@@ -157,49 +175,37 @@ select create_assignment_fn(2,'op_002',2);
 
 
 -- complete assignment function
-CREATE OR REPLACE FUNCTION complete_assignment_fn(
+CREATE OR REPLACE FUNCTION complete_assignment_op_fn(
     p_assignment_id INT,
-    p_user_id INT
+    p_op_id TEXT
 )
 RETURNS VOID AS $$
 DECLARE
-    v_department TEXT;
     v_asset_id INT;
     v_status TEXT;
 BEGIN
-    -- check manager role
-    SELECT department INTO v_department
-    FROM fleet_manager
-    WHERE user_id = p_user_id;
-
-    IF v_department IS NULL OR v_department <> 'logistics' THEN
-        RAISE EXCEPTION 'only logistics managers can complete assignments';
-    END IF;
-
-    -- get assignment + asset
+    -- verify assignment belongs to this operator
     SELECT asset_id, status
     INTO v_asset_id, v_status
     FROM assignments
-    WHERE assignment_id = p_assignment_id;
+    WHERE assignment_id = p_assignment_id
+      AND op_id = p_op_id;
 
     IF v_asset_id IS NULL THEN
-        RAISE EXCEPTION 'assignment not found';
+        RAISE EXCEPTION 'assignment not found or not yours';
     END IF;
 
     IF v_status <> 'active' THEN
-        RAISE EXCEPTION 'assignment already completed';
+        RAISE EXCEPTION 'only active assignments can be completed';
     END IF;
 
-    -- update assignment
     UPDATE assignments
-	SET status = 'completed', completed_at = current_timestamp
-	WHERE assignment_id = p_assignment_id;
+    SET status = 'completed', completed_at = current_timestamp
+    WHERE assignment_id = p_assignment_id;
 
-    -- update asset too 
     UPDATE asset
-    SET scheduled_status = 'unscheduled' 
+    SET scheduled_status = 'unscheduled'
     WHERE asset_id = v_asset_id;
-
 END;
 $$ LANGUAGE plpgsql;
 
@@ -208,6 +214,23 @@ $$ LANGUAGE plpgsql;
 
 -- view for all assignments with joins
 CREATE OR REPLACE VIEW assignments_view AS
+SELECT
+    a.assignment_id,
+    a.manager_id,
+    a.op_id,
+    a.asset_id,
+    a.assigned_at,
+    a.status,
+    ast.asset_name,
+    ast.plate_number,
+    u.name AS operator_name
+FROM assignments a
+JOIN asset ast ON a.asset_id = ast.asset_id
+JOIN operators o ON a.op_id = o.op_id
+JOIN users u ON o.user_id = u.user_id
+ORDER BY a.assigned_at DESC;
+
+CREATE OR REPLACE VIEW operator_assignments_view AS
 SELECT
     a.assignment_id,
     a.manager_id,
@@ -295,10 +318,8 @@ RETURNS INT AS $$
 DECLARE
     v_log_id INT;
 BEGIN
-    -- validate operator assignment + active
     IF NOT EXISTS (
-        SELECT 1
-        FROM assignments
+        SELECT 1 FROM assignments
         WHERE op_id = p_op_id
           AND asset_id = p_asset_id
           AND status = 'active'
@@ -306,26 +327,23 @@ BEGIN
         RAISE EXCEPTION 'operator not assigned to asset';
     END IF;
 
-    -- insert location (trigger will handle breach detection)
     INSERT INTO location_logs (asset_id, op_id, current_location)
     VALUES (
         p_asset_id,
         p_op_id,
         ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326)
     )
-    RETURNING log_id INTO v_log_id;  -- RETURNING must come immediately after INSERT
+    RETURNING log_id INTO v_log_id;
 
-    -- update asset status to in_progress only if it was scheduled
-    -- runs after insert is complete
+    -- set asset in_progress on first log
     UPDATE asset
     SET scheduled_status = 'in_progress'
     WHERE asset_id = p_asset_id
-    AND scheduled_status = 'scheduled';
+      AND scheduled_status = 'scheduled';
 
     RETURN v_log_id;
 END;
 $$ LANGUAGE plpgsql;
-
 --select log_location_fn(1, 'op_003', 33.7215, 73.0433);
 
 CREATE OR REPLACE VIEW latest_locations_view AS
@@ -377,7 +395,6 @@ RETURNS TABLE (
 DECLARE
     v_manager_id TEXT;
 BEGIN
-    -- get manager_id from user_id
     SELECT manager_id INTO v_manager_id
     FROM fleet_manager
     WHERE user_id = p_user_id;
@@ -395,6 +412,7 @@ BEGIN
     FROM operators o
     JOIN users u ON o.user_id = u.user_id
     WHERE o.manager_id = v_manager_id
+      AND u.is_active = TRUE        -- exclude deactivated accounts
     ORDER BY o.op_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -459,6 +477,7 @@ DECLARE
     v_count INT;
     v_prefix TEXT;
     v_password TEXT;
+    v_mgr_dept department_type;
 BEGIN
     -- check duplicate email
     IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
@@ -510,6 +529,19 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM fleet_manager WHERE manager_id = p_manager_id) THEN
             RAISE EXCEPTION 'manager not found';
         END IF;
+
+		-- get manager department
+		SELECT department INTO v_mgr_dept
+		FROM fleet_manager
+		WHERE manager_id = p_manager_id;
+
+		IF NOT FOUND THEN
+    		RAISE EXCEPTION 'manager not found';
+		END IF;
+
+		IF v_mgr_dept <> 'logistics' THEN
+    		RAISE EXCEPTION 'operator can only be assigned to a logistics manager';
+		END IF;
         INSERT INTO operators (op_id, user_id, username, manager_id, active_status)
         VALUES (v_username, v_user_id, v_username, p_manager_id, false);
     END IF;
@@ -556,12 +588,22 @@ SELECT
 FROM users
 ORDER BY user_id DESC;
 
+CREATE OR REPLACE VIEW active_managers_view AS
+SELECT
+    m.manager_id,
+    u.name,
+    u.user_id,
+    m.department
+FROM fleet_manager m
+JOIN users u ON m.user_id = u.user_id
+WHERE u.is_active = TRUE AND m.department = 'logistics'
+ORDER BY u.name;
+select * from active_managers_view;
 --zones.py
 
 --function to create zone
 CREATE OR REPLACE FUNCTION create_zone_fn(
     p_zone_name TEXT,
-    p_is_forbidden BOOLEAN,
     p_wkt TEXT,
     p_user_id INT
 )
@@ -580,11 +622,10 @@ BEGIN
     END IF;
 
     -- insert zone
-    INSERT INTO zones (zone_name, boundary, is_forbidden, created_by)
+    INSERT INTO zones (zone_name, boundary,created_by)
     VALUES (
         p_zone_name,
         ST_GeomFromText(p_wkt, 4326),
-        p_is_forbidden,
         v_admin_id
     )
     RETURNING zone_id INTO v_zone_id;
@@ -595,21 +636,14 @@ $$ LANGUAGE plpgsql;
 
 --view to list zones
 CREATE OR REPLACE VIEW zones_view AS
-SELECT
-    zone_id,
-    zone_name,
-    is_forbidden,
-    created_by,
-    ST_AsGeoJSON(boundary) AS boundary
-FROM zones
-ORDER BY zone_id DESC;
+SELECT zone_id, zone_name, created_by, ST_AsGeoJSON(boundary) AS boundary
+FROM zones ORDER BY zone_id DESC;
 
 --get single zone
 CREATE OR REPLACE FUNCTION get_zone_fn(p_zone_id INT)
 RETURNS TABLE (
     zone_id INT,
     zone_name varchar(100),
-    is_forbidden BOOLEAN,
     created_by varchar(20),
     boundary TEXT
 ) AS $$
@@ -618,7 +652,6 @@ BEGIN
     SELECT
         z.zone_id,
         z.zone_name,
-        z.is_forbidden,
         z.created_by,
         ST_AsGeoJSON(z.boundary)
     FROM zones z
@@ -648,8 +681,7 @@ declare
 begin
     select zone_id into breached_zone
     from zones
-    where is_forbidden = true
-    and st_contains(boundary, new.current_location)
+    where st_contains(boundary, new.current_location)
     limit 1;
 
     if found then

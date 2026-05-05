@@ -54,6 +54,7 @@ create table zones(
 	created_by varchar(20) not null,
 	foreign key (created_by) references security_admin(admin_id)
 );
+ALTER TABLE zones DROP COLUMN is_forbidden cascade;
 create table asset(
 	asset_id serial primary key,
 	asset_name varchar(50) not null,
@@ -82,7 +83,7 @@ create table assignments(
 	assigned_at timestamp not null default current_timestamp,
 	status assignment_status_type not null default 'active' --active or completed
 );
-dr
+
 create table dummy(
 	dummy_id serial primary key,
 	asset_name_fake VARCHAR(20),

@@ -93,7 +93,7 @@ export default function AdminBreaches() {
               </table>
               {geofence.length === 0 && (
                 <div className="empty-state">
-                  <div className="empty-state-icon">✅</div>
+                  <div className="empty-state-icon"></div>
                   <div className="empty-state-text">No geofence breaches recorded</div>
                 </div>
               )}
@@ -115,14 +115,14 @@ export default function AdminBreaches() {
                         </code>
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.session_id}</td>
-                      <td style={{ fontSize: 12 }}>{new Date(s.timestamp).toLocaleString()}</td>
+                      <td style={{ fontSize: 12 }}>{new Date(s.time_stamp).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {sqli.length === 0 && (
                 <div className="empty-state">
-                  <div className="empty-state-icon">✅</div>
+                  <div className="empty-state-icon"></div>
                   <div className="empty-state-text">No SQL injection attempts recorded</div>
                 </div>
               )}

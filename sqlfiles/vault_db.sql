@@ -8,7 +8,7 @@ CREATE TABLE geofence_breach (
     zone_id      INTEGER   NOT NULL,
     detected_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
+select * from geofence_breach;
 -- Run on VaultDatabase:
 CREATE OR REPLACE FUNCTION fill_gb_id()
 RETURNS TRIGGER AS $$

@@ -43,15 +43,8 @@ export default function ManagerLiveMap() {
           <div className="stat-card" style={{ flex: 1 }}>
             <div className="stat-icon" style={{ background: 'var(--accent-red-dim)', color: 'var(--accent-red)' }}>⛔</div>
             <div>
-              <div className="stat-value" style={{ color: 'var(--accent-red)' }}>{zones.filter(z => z.is_forbidden).length}</div>
+              <div className="stat-value" style={{ color: 'var(--accent-red)' }}>{zones.length}</div>
               <div className="stat-label">Forbidden Zones</div>
-            </div>
-          </div>
-          <div className="stat-card" style={{ flex: 1 }}>
-            <div className="stat-icon" style={{ background: 'var(--accent-emerald-dim)', color: 'var(--accent-emerald)' }}>✅</div>
-            <div>
-              <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>{zones.filter(z => !z.is_forbidden).length}</div>
-              <div className="stat-label">Allowed Zones</div>
             </div>
           </div>
         </div>

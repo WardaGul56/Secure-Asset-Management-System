@@ -14,9 +14,6 @@ export default function OperatorZones() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Only show forbidden zones to operators
-  const forbiddenZones = zones.filter(z => z.is_forbidden)
-
   return (
     <>
       <Topbar title="Forbidden Zones" subtitle="Areas you must not enter — entry triggers a security alert" />
@@ -32,15 +29,15 @@ export default function OperatorZones() {
                   <span style={{ color: '#ef4444' }}>⛔</span> Red areas = Do not enter
                 </div>
               </div>
-              <MapWidget zones={forbiddenZones} className="map-container-full" center={[33.72, 73.04]} />
+              <MapWidget zones={zones} className="map-container-full" center={[33.72, 73.04]} />
             </div>
 
             <div className="card">
               <div className="card-header">
                 <div className="card-title">Forbidden Zones</div>
-                <span className="badge badge-red">{forbiddenZones.length} restricted</span>
+                <span className="badge badge-red">{zones.length} restricted</span>
               </div>
-              {forbiddenZones.length === 0 ? (
+              {zones.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">🗺</div>
                   <div className="empty-state-text">No forbidden zones defined</div>
@@ -52,7 +49,7 @@ export default function OperatorZones() {
                       <tr><th>Zone Name</th><th>Type</th><th>Warning</th></tr>
                     </thead>
                     <tbody>
-                      {forbiddenZones.map(z => (
+                      {zones.map(z => (
                         <tr key={z.zone_id}>
                           <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{z.zone_name}</td>
                           <td><span className="badge badge-red">⛔ Forbidden</span></td>

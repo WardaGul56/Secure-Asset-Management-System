@@ -27,7 +27,6 @@ import ManagerZones from './pages/manager/Zones'
 import OperatorDashboard from './pages/operator/Dashboard'
 import OperatorLocation from './pages/operator/Location'
 import OperatorZones from './pages/operator/Zones'
-import OperatorSearch from './pages/operator/Search'
 import OperatorAssignments from './pages/operator/Assignments'
 
 // ============================================
@@ -82,7 +81,7 @@ function RootRedirect() {
   if (!user) return <Navigate to="/login" replace />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
   if (user.role === 'manager') return <Navigate to="/manager" replace />
-  if (user.role === 'honeypot') return <Navigate to="/honeypot-dashboard" replace />
+  if (user.role === 'honeypot') return <Navigate to="/admin-panel" replace />
   return <Navigate to="/operator" replace />
 }
 
@@ -183,11 +182,6 @@ export default function App() {
           <Route path="/operator/zones" element={
             <RequireAuth allowedRoles={['operator']}>
               <AppLayout><OperatorZones /></AppLayout>
-            </RequireAuth>
-          } />
-          <Route path="/operator/search" element={
-            <RequireAuth allowedRoles={['operator']}>
-              <AppLayout><OperatorSearch /></AppLayout>
             </RequireAuth>
           } />
           <Route path="/operator/assignments" element={

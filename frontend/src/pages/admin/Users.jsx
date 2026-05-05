@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Topbar from '../../components/Topbar'
-import { usersApi, operatorsApi } from '../../api'
+import { usersApi } from '../../api'
 
 function roleBadge(role) {
   if (role === 'admin') return <span className="badge badge-violet">Admin</span>
@@ -24,21 +24,18 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers()
-    operatorsApi.getAll().then(r => {
-      // We need managers — fetch from users filtered by role
-    }).catch(() => {})
   }, [])
 
-  // Fetch managers for operator creation dropdown
+  // Fetch logistics-only managers when operator role is selected
   useEffect(() => {
     if (form.role === 'operator') {
-      usersApi.getAll().then(r => {
-        setManagers((r.data.users || []).filter(u => u.role === 'manager'))
+      usersApi.getManagers().then(r => {
+        setManagers(r.data.managers || [])
       }).catch(() => {})
     }
   }, [form.role])
 
-  const handleCreate = async (e) => {
+    const handleCreate = async (e) => {
     e.preventDefault()
     setError('')
     setSubmitting(true)
@@ -54,7 +51,7 @@ export default function AdminUsers() {
       setResult(res.data)
       fetchUsers()
     } catch (err) {
-      setError(err.message)
+      setError(err.response?.data?.detail || err.message || 'Something went wrong')
     } finally {
       setSubmitting(false)
     }
@@ -66,10 +63,9 @@ export default function AdminUsers() {
       await usersApi.deactivate({ user_id: userId })
       fetchUsers()
     } catch (err) {
-      alert(err.message)
+      alert(err.response?.data?.detail || err.message || 'Something went wrong')
     }
   }
-
   const closeModal = () => {
     setShowModal(false)
     setResult(null)
@@ -196,8 +192,8 @@ export default function AdminUsers() {
                       <select className="form-input" value={form.manager_id} onChange={e => setForm(p => ({ ...p, manager_id: e.target.value }))} required>
                         <option value="">Select manager</option>
                         {managers.map(m => (
-                          <option key={m.user_id} value={`manager_${String(m.user_id).padStart(3,'0')}`}>
-                            {m.name} (manager_{String(m.user_id).padStart(3,'0')})
+                          <option key={m.manager_id} value={m.manager_id}>
+                            {m.name} ({m.manager_id})
                           </option>
                         ))}
                       </select>

@@ -10,8 +10,10 @@ router = APIRouter()
 class AssignmentInput(BaseModel):
     op_id: str
     asset_id: int
+
 class CompleteAssignmentInput(BaseModel):
     assignment_id: int
+
 # =======================
 # HELPER FUNCTION
 # =======================
@@ -35,7 +37,7 @@ def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager
     try:
         # check manager department
         cur.execute(
-            "SELECT department FROM managers WHERE user_id = %s",
+            "SELECT department FROM fleet_manager WHERE user_id = %s",
             (user["user_id"],)
         )
         mgr = cur.fetchone()
@@ -69,12 +71,6 @@ def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager
         )
         result = cur.fetchone()
 
-        # update asset status
-        cur.execute(
-            "UPDATE assets SET scheduled_status = 'scheduled' WHERE asset_id = %s",
-            (data.asset_id,)
-        )
-
         conn.commit()
 
         return {
@@ -95,44 +91,30 @@ def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager
 
 
 # =======================
-# COMPLETE ASSIGNMENT
+# COMPLETE ASSIGNMENT (OPERATOR ONLY)
 # =======================
 @router.put("/complete")
-def complete_assignment(data: CompleteAssignmentInput, user=Depends(require_role(["manager"]))):
+def complete_assignment(data: CompleteAssignmentInput, user=Depends(require_role(["operator"]))):
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
-        # check manager department
+        # get op_id from user_id
         cur.execute(
-            "SELECT department FROM managers WHERE user_id = %s",
+            "SELECT op_id FROM operators WHERE user_id = %s",
             (user["user_id"],)
         )
-        mgr = cur.fetchone()
+        op = cur.fetchone()
 
-        if not mgr or mgr[0] != "logistics":
-            raise HTTPException(
-                status_code=403,
-                detail="Only logistics managers can complete assignments"
-            )
+        if not op:
+            raise HTTPException(status_code=404, detail="Operator not found")
 
-        # call DB function
+        op_id = op[0]
+
+        # call DB function — ownership + status check is inside
         cur.execute(
-            "SELECT complete_assignment_fn(%s, %s)",
-            (data.assignment_id, user["user_id"])
-        )
-
-        # reset asset status
-        cur.execute(
-            """
-            UPDATE assets
-            SET scheduled_status = 'unscheduled'
-            WHERE asset_id = (
-                SELECT asset_id FROM assignments
-                WHERE assignment_id = %s
-            )
-            """,
-            (data.assignment_id,)
+            "SELECT complete_assignment_op_fn(%s, %s)",
+            (data.assignment_id, op_id)
         )
 
         conn.commit()
@@ -178,6 +160,52 @@ def get_all_assignments(user=Depends(require_role(["admin", "manager"]))):
             ]
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=friendly_error(e))
+
+    finally:
+        close_db(conn, cur)
+
+# =======================
+# GET MY ASSIGNMENTS (OPERATOR)
+# =======================
+@router.get("/my")
+def get_my_assignments(user=Depends(require_role(["operator"]))):
+    conn = get_main_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("SELECT op_id FROM operators WHERE user_id = %s", (user["user_id"],))
+        op = cur.fetchone()
+
+        if not op:
+            raise HTTPException(status_code=404, detail="Operator not found")
+
+        cur.execute(
+            "SELECT * FROM operator_assignments_view WHERE op_id = %s",
+            (op[0],)
+        )
+        rows = cur.fetchall()
+
+        return {
+            "assignments": [
+                {
+                    "assignment_id": row[0],
+                    "manager_id": row[1],
+                    "op_id": row[2],
+                    "asset_id": row[3],
+                    "assigned_at": str(row[4]),
+                    "status": row[5],
+                    "asset_name": row[6],
+                    "plate_number": row[7],
+                    "operator_name": row[8]
+                }
+                for row in rows
+            ]
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=friendly_error(e))
 

@@ -19,7 +19,6 @@ export default function ManagerAssignments() {
   const [form, setForm] = useState({ op_id: '', asset_id: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [isLogistics, setIsLogistics] = useState(false)
 
   const fetchAll = () => {
     Promise.all([
@@ -28,22 +27,12 @@ export default function ManagerAssignments() {
       assetsApi.getAll(),
     ]).then(([a, o, ast]) => {
       setAssignments(a.data.assignments || [])
-      // Only show ACTIVE operators — never assign to inactive
       setOperators((o.data.operators || []).filter(op => op.active_status))
-      // Only assets that are unscheduled (available to schedule)
-      setAssets((ast.data.assets || []).filter(a => a.scheduled_status === 'unscheduled'))
+      setAssets((ast.data.assets || []).filter(asset => asset.scheduled_status === 'unscheduled'))
     }).catch(console.error).finally(() => setLoading(false))
   }
 
-  useEffect(() => {
-    // Detect if this manager is logistics by checking if they get operators
-    // (patrol managers won't need assignment creation anyway)
-    // We check department from token if available, else allow attempt and let backend reject
-    fetchAll()
-    // Check if logistics manager (backend enforces, but we hide the button for patrol)
-    // If department info were stored in token we'd use it; for now we optimistically show and backend guards
-    setIsLogistics(true) // Backend will enforce; UI will show button but backend rejects patrol managers
-  }, [])
+  useEffect(() => { fetchAll() }, [])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -61,16 +50,6 @@ export default function ManagerAssignments() {
       setError(err.message)
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  const handleComplete = async (id) => {
-    if (!window.confirm('Mark this assignment as completed?')) return
-    try {
-      await assignmentsApi.complete({ assignment_id: id })
-      fetchAll()
-    } catch (err) {
-      alert(err.message)
     }
   }
 
@@ -112,7 +91,6 @@ export default function ManagerAssignments() {
                     <th>Assigned At</th>
                     <th>Status</th>
                     <th>Notes</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -127,16 +105,6 @@ export default function ManagerAssignments() {
                       <td>{statusBadge(a.status)}</td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.notes || '—'}
-                      </td>
-                      <td>
-                        {(a.status === 'active' || a.status === 'scheduled') && (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleComplete(a.assignment_id)}
-                          >
-                            ✓ Complete
-                          </button>
-                        )}
                       </td>
                     </tr>
                   ))}
@@ -157,9 +125,6 @@ export default function ManagerAssignments() {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">Create New Assignment</div>
-            <div className="alert alert-info" style={{ marginBottom: 12 }}>
-              <span>ℹ</span> Creating an assignment will automatically set the asset status to <strong>Scheduled</strong>. Only logistics managers can create assignments.
-            </div>
             {error && <div className="alert alert-error"><span>⚠</span> {error}</div>}
             <form onSubmit={handleCreate}>
               <div className="form-group">

@@ -21,7 +21,7 @@ export default function Login() {
 
     // honeypot role — send to fake dashboard
     if (role === 'honeypot') {
-      navigate('/honeypot-dashboard')
+      navigate('/admin-panel')
       return
     }
 

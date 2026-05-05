@@ -10,7 +10,6 @@ router = APIRouter()
 #request models -- what should we expect while receiving a JSON response
 class ZoneInput(BaseModel):
     zone_name: str
-    is_forbidden: bool
     coordinates: list[list[float]]
     # coordinates come as a list of [longitude, latitude] pairs
     # example: [[73.0, 33.0], [73.1, 33.0], [73.1, 33.1], [73.0, 33.1], [73.0, 33.0]]
@@ -36,8 +35,8 @@ def create_zone(data: ZoneInput, user=Depends(require_role(["admin"]))):
             raise HTTPException(status_code=400, detail="At least 3 coordinates required")
         wkt = coords_to_wkt(data.coordinates)
         cur.execute(
-            "SELECT create_zone_fn(%s, %s, %s, %s)",
-            (data.zone_name, data.is_forbidden, wkt, user["user_id"])
+            "SELECT create_zone_fn(%s, %s, %s)",
+            (data.zone_name,wkt, user["user_id"])
         )
         zone_id = cur.fetchone()[0]
         conn.commit()
@@ -67,16 +66,15 @@ def get_all_zones(user=Depends(require_role(["admin", "manager", "operator"]))):
 
         return {
             "zones": [
-                {
-                    "zone_id": r[0],
-                    "zone_name": r[1],
-                    "is_forbidden": r[2],
-                    "created_by": r[3],
-                    "boundary": r[4]
-                }
-                for r in rows
-            ]
-        }
+            {
+                "zone_id": r[0],
+                "zone_name": r[1],
+                "created_by": r[2],
+                "boundary": r[3]
+            }
+            for r in rows
+        ]
+            }
 
     finally:
         close_db(conn, cur)
@@ -97,9 +95,8 @@ def get_zone(zone_id: int, user=Depends(require_role(["admin", "manager", "opera
         return {
             "zone_id": row[0],
             "zone_name": row[1],
-            "is_forbidden": row[2],
-            "created_by": row[3],
-            "boundary": row[4]
+            "created_by": row[2],
+            "boundary": row[3]
         }
 
     finally:

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE = 'http://10.1.59.92:8000'
+const BASE = 'http://10.1.59.56:8000'
 
 const api = axios.create({ baseURL: BASE })
 
@@ -29,6 +29,7 @@ export const usersApi = {
   getAll: () => api.get('/users/all'),
   create: (data) => api.post('/users/create', data),
   deactivate: (data) => api.put('/users/deactivate', data),
+  getManagers: () => api.get('/users/managers'),
 }
 
 // Assets
@@ -54,9 +55,10 @@ export const operatorsApi = {
   toggle: (opId) => api.put(`/operators/toggle-status/${opId}`),
 }
 
-// Assignments
+//Assignments
 export const assignmentsApi = {
   getAll: () => api.get('/assignment/all'),
+  getMy: () => api.get('/assignment/my'),
   create: (data) => api.post('/assignment/create', data),
   complete: (data) => api.put('/assignment/complete', data),
 }
@@ -75,7 +77,7 @@ export const breachesApi = {
   getSqli: () => api.get('/breaches/sqli'),
 }
 
-// Honeypot
+//honeypot
 export const honeypotApi = {
-  search: (query) => api.get(`/search/asset?query=${encodeURIComponent(query)}`),
+  getData: () => api.get('/search/data'),
 }

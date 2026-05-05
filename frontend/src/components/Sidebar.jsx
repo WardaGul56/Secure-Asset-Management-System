@@ -25,7 +25,6 @@ const operatorNav = [
   { label: 'My Assignments', icon: '📋', path: '/operator/assignments' },
   { label: 'Log Location', icon: '📍', path: '/operator/location' },
   { label: 'View Zones', icon: '🗺', path: '/operator/zones' },
-  { label: 'Asset Search', icon: '🔍', path: '/operator/search' },
 ]
 
 export default function Sidebar() {

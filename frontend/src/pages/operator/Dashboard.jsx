@@ -25,7 +25,6 @@ export default function OperatorDashboard() {
     { label: 'My Assignments', icon: '📋', desc: 'View and update your current assignments', path: '/operator/assignments', color: 'var(--accent-violet)', bg: 'var(--accent-violet-dim)' },
     { label: 'Log My Location', icon: '📍', desc: 'Submit your current GPS coordinates', path: '/operator/location', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
     { label: 'View Zone Map', icon: '🗺', desc: 'See forbidden zones on map', path: '/operator/zones', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
-    { label: 'Asset Search', icon: '🔍', desc: 'Search assets by name', path: '/operator/search', color: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)' },
   ]
 
   return (

@@ -1,27 +1,14 @@
 import { useEffect, useState } from 'react'
 import { honeypotApi } from '../api'
 
-// fake data in case API call also fails
-const FALLBACK = [
-  { asset_name: 'Ghost Truck Alpha', location: 'Warehouse 7, Sector G-9, Islamabad' },
-  { asset_name: 'Shadow Van Beta', location: 'Terminal B, Port Qasim, Karachi' },
-  { asset_name: 'Phantom Carrier X', location: 'Cold Storage, I-10, Islamabad' },
-  { asset_name: 'Delta Hauler 04', location: 'Logistics Hub, Lahore Ring Road' },
-  { asset_name: 'Echo Transport 07', location: 'Depot C, Rawalpindi Saddar' },
-]
-
 export default function HoneypotDashboard() {
-  const [assets, setAssets] = useState(FALLBACK)
+  const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // fetch real dummy data from honeypot table
-    honeypotApi.search('truck')
-      .then(r => {
-        const data = r.data.results || []
-        setAssets(data.length > 0 ? data : FALLBACK)
-      })
-      .catch(() => setAssets(FALLBACK))
+    honeypotApi.getData()
+      .then(r => setAssets(r.data.results || []))
+      .catch(() => setAssets([]))
       .finally(() => setLoading(false))
   }, [])
 
@@ -123,7 +110,7 @@ export default function HoneypotDashboard() {
             ))}
           </div>
 
-          {/* Fake asset table */}
+          {/* Asset table */}
           <div style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',
@@ -164,20 +151,28 @@ export default function HoneypotDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {assets.map((a, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '13px 16px', fontSize: 12, color: 'var(--text-muted)' }}>{i + 1}</td>
-                      <td style={{ padding: '13px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                        🚛 {a.asset_name}
-                      </td>
-                      <td style={{ padding: '13px 16px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                        📍 {a.location}
-                      </td>
-                      <td style={{ padding: '13px 16px' }}>
-                        <span className="badge badge-green">● Active</span>
+                  {assets.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                        No assets found
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    assets.map((a, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '13px 16px', fontSize: 12, color: 'var(--text-muted)' }}>{i + 1}</td>
+                        <td style={{ padding: '13px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                          🚛 {a.asset_name}
+                        </td>
+                        <td style={{ padding: '13px 16px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                          📍 {a.location}
+                        </td>
+                        <td style={{ padding: '13px 16px' }}>
+                          <span className="badge badge-green">● Active</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             )}

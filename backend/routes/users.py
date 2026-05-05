@@ -40,19 +40,6 @@ def create_user(data: CreateUserInput, user=Depends(require_role(["admin"]))):
     cur = conn.cursor()
 
     try:
-        # Validate manager_id if provided for operator
-        if data.role == 'operator' and data.manager_id:
-            cur.execute(
-                "SELECT user_id FROM managers m JOIN users u ON m.user_id = u.user_id WHERE m.manager_id = %s AND u.is_active = TRUE",
-                (data.manager_id,)
-            )
-            mgr = cur.fetchone()
-            if not mgr:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Manager '{data.manager_id}' does not exist or is inactive. Please select a valid, active manager."
-                )
-
         cur.execute(
             "SELECT * FROM create_user_fn(%s, %s, %s, %s, %s)",
             (data.name, data.email, data.role, data.department, data.manager_id)
@@ -71,7 +58,7 @@ def create_user(data: CreateUserInput, user=Depends(require_role(["admin"]))):
         raise
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=friendly_error(e))
+        raise HTTPException(status_code=400, detail=friendly_error(e))
     finally:
         close_db(conn, cur)
 
@@ -93,7 +80,7 @@ def deactivate_user(data: DeactivateUserInput, user=Depends(require_role(["admin
 
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=friendly_error(e))
+        raise HTTPException(status_code=400, detail=friendly_error(e))
     finally:
         close_db(conn, cur)
 
@@ -108,8 +95,7 @@ def get_all_users(user=Depends(require_role(["admin"]))):
     cur = conn.cursor()
 
     try:
-        # Order descending by user_id so newest users appear first
-        cur.execute("SELECT * FROM users_view ORDER BY user_id DESC")
+        cur.execute("SELECT * FROM users_view")
         rows = cur.fetchall()
 
         return {
@@ -142,14 +128,9 @@ def get_managers(user=Depends(require_role(["admin"]))):
     cur = conn.cursor()
 
     try:
-        cur.execute("""
-            SELECT m.manager_id, u.name, u.user_id, m.department
-            FROM managers m
-            JOIN users u ON m.user_id = u.user_id
-            WHERE u.is_active = TRUE
-            ORDER BY u.name
-        """)
+        cur.execute("SELECT * FROM active_managers_view")
         rows = cur.fetchall()
+
         return {
             "managers": [
                 {
@@ -161,6 +142,7 @@ def get_managers(user=Depends(require_role(["admin"]))):
                 for r in rows
             ]
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=friendly_error(e))
     finally:

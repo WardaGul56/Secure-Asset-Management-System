@@ -38,33 +38,22 @@ def get_all_operators(user=Depends(require_role(["admin", "manager"]))):
 # manager sees only their own operators
 @router.get("/my-team")
 def get_my_operators(user=Depends(require_role(["manager"]))):
-
     conn = get_main_db()
     cur = conn.cursor()
-
     try:
-        cur.execute(
-            "SELECT * FROM get_my_operators_fn(%s)",
-            (user["user_id"],)
-        )
-
+        cur.execute("SELECT * FROM get_my_operators_fn(%s)", (user["user_id"],))
         rows = cur.fetchall()
-
         return {
             "operators": [
-                {
-                    "op_id": r[0],
-                    "name": r[1],
-                    "username": r[2],
-                    "active_status": r[3]
-                }
+                {"op_id": r[0], "name": r[1], "username": r[2], "active_status": r[3]}
                 for r in rows
             ]
         }
-
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         close_db(conn, cur)
-
+        
 # PUT /operators/toggle-status/{op_id}
 # manager toggles operator on/off shift
 @router.put("/toggle-status/{op_id}")
