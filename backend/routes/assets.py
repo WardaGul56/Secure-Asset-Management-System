@@ -72,7 +72,7 @@ def get_all_assets(user=Depends(require_role(["admin", "manager"]))): #only mana
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:
-        close_db(conn, cur)  #con=connection,cur=cursor
+        close_db(conn, cur)  #con=connection to data from fastapi,cur=cursor that receives sql queries
 
 
 # PUT /assets/status

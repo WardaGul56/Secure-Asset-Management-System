@@ -4,7 +4,7 @@ from database import get_main_db, close_db
 from auth_utils import require_role
 import re
 
-router = APIRouter()
+router = APIRouter()  #creates a router for assignment
 
 # MODELS
 class AssignmentInput(BaseModel):
@@ -14,10 +14,9 @@ class AssignmentInput(BaseModel):
 class CompleteAssignmentInput(BaseModel):
     assignment_id: int
 
-# =======================
+
 # HELPER FUNCTION
-# =======================
-def friendly_error(e: Exception) -> str:
+def friendly_error(e: Exception) -> str:  #for cleaner erros msg is stored in e
     msg = str(e)
     msg = re.split(r'\nCONTEXT:', msg)[0]
     msg = re.split(r'\nDETAIL:', msg)[0]
@@ -26,13 +25,11 @@ def friendly_error(e: Exception) -> str:
     return msg or "An unexpected error occurred"
 
 
-# =======================
 # CREATE ASSIGNMENT
-# =======================
 @router.post("/create")
 def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager"]))):
-    conn = get_main_db()
-    cur = conn.cursor()
+    conn = get_main_db() #db connection
+    cur = conn.cursor()  #sql executor
 
     try:
         # check manager department
@@ -42,7 +39,7 @@ def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager
         )
         mgr = cur.fetchone()
 
-        if not mgr or mgr[0] != "logistics":
+        if not mgr or mgr[0] != "logistics":  #mnager exist but the dept is not logistics
             raise HTTPException(
                 status_code=403,
                 detail="Only logistics managers can create assignments"
@@ -90,9 +87,7 @@ def create_assignment(data: AssignmentInput, user=Depends(require_role(["manager
         close_db(conn, cur)
 
 
-# =======================
-# COMPLETE ASSIGNMENT (OPERATOR ONLY)
-# =======================
+# COMPLETE ASSIGNMENT 
 @router.put("/complete")
 def complete_assignment(data: CompleteAssignmentInput, user=Depends(require_role(["operator"]))):
     conn = get_main_db()
@@ -131,9 +126,7 @@ def complete_assignment(data: CompleteAssignmentInput, user=Depends(require_role
         close_db(conn, cur)
 
 
-# =======================
 # GET ALL ASSIGNMENTS
-# =======================
 @router.get("/all")
 def get_all_assignments(user=Depends(require_role(["admin", "manager"]))):
     conn = get_main_db()
@@ -166,15 +159,15 @@ def get_all_assignments(user=Depends(require_role(["admin", "manager"]))):
     finally:
         close_db(conn, cur)
 
-# =======================
+
 # GET MY ASSIGNMENTS (OPERATOR)
-# =======================
 @router.get("/my")
 def get_my_assignments(user=Depends(require_role(["operator"]))):
     conn = get_main_db()
     cur = conn.cursor()
 
     try:
+        #Gets current operator.
         cur.execute("SELECT op_id FROM operators WHERE user_id = %s", (user["user_id"],))
         op = cur.fetchone()
 
@@ -182,6 +175,7 @@ def get_my_assignments(user=Depends(require_role(["operator"]))):
             raise HTTPException(status_code=404, detail="Operator not found")
 
         cur.execute(
+            #Gets only assignments for logged-in operator.
             "SELECT * FROM operator_assignments_view WHERE op_id = %s",
             (op[0],)
         )
