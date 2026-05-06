@@ -109,5 +109,5 @@ import foreign schema public
     from server vault_server
     into vault_schema;
 
--- Fix the corrupted host option
+-- Fixed the corrupted host option
 ALTER SERVER vault_server OPTIONS (SET host 'localhost');
