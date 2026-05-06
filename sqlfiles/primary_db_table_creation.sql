@@ -109,9 +109,5 @@ import foreign schema public
     from server vault_server
     into vault_schema;
 
-ALTER USER MAPPING FOR postgres
-    SERVER vault_server
-    OPTIONS (SET user 'postgres', SET password 'pinky2512');
-
 -- Fix the corrupted host option
 ALTER SERVER vault_server OPTIONS (SET host 'localhost');
