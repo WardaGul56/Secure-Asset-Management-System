@@ -1,4 +1,6 @@
 --warda queries
+
+
 --assets.py
 -- create asset function
 CREATE OR REPLACE FUNCTION create_asset_fn(
@@ -72,7 +74,6 @@ END;
 $$ LANGUAGE plpgsql;
 --drop function update_asset_status_fn(int,text,int);
 
-
 -- get single asset function
 CREATE OR REPLACE FUNCTION get_asset_fn(p_asset_id INT)
 RETURNS TABLE(
@@ -93,6 +94,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 --select get_asset_fn(2);
+
+
+
 
 
 --assignment.py
@@ -154,7 +158,6 @@ BEGIN
         RAISE EXCEPTION 'operator already has an active assignment';
     END IF;
 
-
 	-- create assignment
     INSERT INTO assignments (manager_id, op_id, asset_id, status)
     VALUES (v_manager_id, p_op_id, p_asset_id, 'active')
@@ -172,7 +175,6 @@ END;
 $$ LANGUAGE plpgsql;
 drop function create_assignment_fn(int,text,int);
 select create_assignment_fn(2,'op_002',2);
-
 
 -- complete assignment function
 CREATE OR REPLACE FUNCTION complete_assignment_op_fn(
@@ -247,6 +249,10 @@ JOIN operators o ON a.op_id = o.op_id
 JOIN users u ON o.user_id = u.user_id
 ORDER BY a.assigned_at DESC;
 
+
+
+
+
 --auth.py
 CREATE OR REPLACE FUNCTION login_user_fn(p_username TEXT)
 RETURNS TABLE(
@@ -273,6 +279,10 @@ BEGIN
 END;
 $$;
 
+
+
+
+
 --breaches.py
 CREATE OR REPLACE VIEW sqli_breaches_view AS
 SELECT
@@ -297,15 +307,19 @@ ORDER BY detected_at DESC;
 
 
 
+
 --maheen queries
+
 --honeypot.py
-
-
 CREATE OR REPLACE VIEW honeypot_assets_view AS
 SELECT
     asset_name_fake,
     location_fake
 FROM dummy;
+
+
+
+
 
 --location.py
 CREATE OR REPLACE FUNCTION log_location_fn(
@@ -370,6 +384,10 @@ SELECT
     ll.time_stamp
 FROM location_logs ll;
 --select * from location_history_view;
+
+
+
+
 
 --operators.py
 
@@ -459,6 +477,9 @@ $$ LANGUAGE plpgsql;
 
 drop function toggle_operator_fn(text,int);
 select toggle_operator_fn('op_004', 2);
+
+
+
 
 
 --users.py
@@ -599,6 +620,11 @@ JOIN users u ON m.user_id = u.user_id
 WHERE u.is_active = TRUE AND m.department = 'logistics'
 ORDER BY u.name;
 select * from active_managers_view;
+
+
+
+
+
 --zones.py
 
 --function to create zone
@@ -673,6 +699,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+
+
+
+--breach trigger function and trigger
 -- geofence breach trigger
 create or replace function check_geofence_breach()
 returns trigger as $$
